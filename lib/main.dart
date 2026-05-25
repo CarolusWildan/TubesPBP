@@ -60,8 +60,8 @@ class HotelApp extends StatelessWidget {
       ),
 
       // TODO: Ganti ke MainScreen() / AuthWrapper() setelah selesai preview
-      home: const BookingSummaryScreen(), // ← sementara untuk preview
-      // home: const MainScreen(),
+      // home: const BookingSummaryScreen(), // ← sementara untuk preview
+      home: const MainScreen(),
       // home: const AuthWrapper(),
     );
   }
