@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/network/api_client.dart';
+
 class AddonItem {
   final String id;
   final String name;
@@ -29,6 +31,17 @@ class PaymentMethodItem {
 }
 
 class BookingSummaryProvider extends ChangeNotifier {
+  BookingSummaryProvider({ApiClient? apiClient})
+      : _apiClient = apiClient ?? ApiClient();
+
+  final ApiClient _apiClient;
+
+  bool _isSubmitting = false;
+  bool get isSubmitting => _isSubmitting;
+
+  String? _lastPaymentId;
+  String? get lastPaymentId => _lastPaymentId;
+
   // Addon list
   final List<AddonItem> addons = [
     AddonItem(
@@ -53,12 +66,16 @@ class BookingSummaryProvider extends ChangeNotifier {
 
   // Payment methods
   final List<PaymentMethodItem> paymentMethods = [
-    PaymentMethodItem(id: 'qris', name: 'Qris', icon: Icons.qr_code),
-    PaymentMethodItem(id: 'transfer', name: 'Transfer', icon: Icons.account_balance),
+    PaymentMethodItem(id: 'virtual_account', name: 'Qris', icon: Icons.qr_code),
+    PaymentMethodItem(
+      id: 'credit_card',
+      name: 'Credit Card',
+      icon: Icons.credit_card,
+    ),
     PaymentMethodItem(id: 'ewallet', name: 'E-Wallet', icon: Icons.wallet),
   ];
 
-  String selectedPaymentMethodId = 'qris';
+  String selectedPaymentMethodId = 'virtual_account';
 
   // Base booking data (bisa di-inject dari navigasi)
   final double subtotalOrder = 20970134;
@@ -88,5 +105,88 @@ class BookingSummaryProvider extends ChangeNotifier {
   void selectPaymentMethod(String id) {
     selectedPaymentMethodId = id;
     notifyListeners();
+  }
+
+  Future<void> submitBookingPayment() async {
+    if (_isSubmitting) return;
+
+    _isSubmitting = true;
+    notifyListeners();
+
+    try {
+      final userId = await _getOrCreateDemoUserId();
+      final booking = await _apiClient.post('/bookings', {
+        'id_user': userId,
+        'tanggal_booking': _formatDate(DateTime.now()),
+        'check_in': '2024-11-15',
+        'check_out': '2024-11-17',
+        'total_harga': totalPayment,
+        'status': 'pending',
+      });
+
+      final bookingId = booking['id_booking']?.toString();
+      if (bookingId == null || bookingId.isEmpty) {
+        throw Exception('ID booking tidak ditemukan dari response Laravel.');
+      }
+
+      final payment = await _apiClient.post('/payments', {
+        'id_booking': bookingId,
+        'metode_pembayaran': selectedPaymentMethodId,
+        'jumlah_bayar': totalPayment,
+      });
+
+      _lastPaymentId = payment['id_payment']?.toString();
+    } finally {
+      _isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String> _getOrCreateDemoUserId() async {
+    final usersResponse = await _apiClient.get('/users');
+    final List users;
+    if (usersResponse is List) {
+      users = usersResponse;
+    } else if (usersResponse is Map<String, dynamic> &&
+        usersResponse['data'] is List) {
+      users = usersResponse['data'] as List;
+    } else {
+      users = const [];
+    }
+
+    if (users.isEmpty) {
+      final user = await _apiClient.post('/users', {
+        'nama': 'Vinsensius Devando Febrilian',
+        'email': 'devangaming@gmail.com',
+        'password': 'Password123',
+        'no_hp': '08123456789',
+        'alamat': 'Yogyakarta',
+      });
+
+      final userId = user['id_user']?.toString();
+      if (userId == null || userId.isEmpty) {
+        throw Exception('Gagal membuat user demo untuk booking.');
+      }
+
+      return userId;
+    }
+
+    final firstUser = users.first;
+    if (firstUser is! Map<String, dynamic>) {
+      throw Exception('Format data user dari Laravel tidak sesuai.');
+    }
+
+    final userId = firstUser['id_user']?.toString();
+    if (userId == null || userId.isEmpty) {
+      throw Exception('Field id_user tidak ditemukan dari data user Laravel.');
+    }
+
+    return userId;
+  }
+
+  String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 }

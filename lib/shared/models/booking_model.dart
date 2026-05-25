@@ -1,99 +1,117 @@
+import 'booking_addon_model.dart';
+import 'user_model.dart';
+
+enum BookingStatus { success, pending, cancel }
+
 class BookingModel {
-  final String? id;
-  final String userId;
-  final String hotelId;
-  final String roomId;
-  final String guestName;
-  final String guestPhone;
-  final DateTime checkInDate;
-  final DateTime checkOutDate;
-  final bool hasBreakfast;
-  final double totalPrice;
-  final String paymentMethod;
-  final String status;
+  final String? idBooking;
+  final String idUser;
+  final DateTime tanggalBooking;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final double totalHarga;
+  final BookingStatus status;
+  final UserModel? user;
+  final List<BookingAddonModel> bookingAddons;
 
   BookingModel({
-    this.id,
-    required this.userId,
-    required this.hotelId,
-    required this.roomId,
-    required this.guestName,
-    required this.guestPhone,
-    required this.checkInDate,
-    required this.checkOutDate,
-    this.hasBreakfast = false,
-    required this.totalPrice,
-    required this.paymentMethod,
+    this.idBooking,
+    required this.idUser,
+    required this.tanggalBooking,
+    required this.checkIn,
+    required this.checkOut,
+    required this.totalHarga,
     required this.status,
+    this.user,
+    this.bookingAddons = const [],
   });
 
+  String? get id => idBooking;
+  String get userId => idUser;
+  DateTime get checkInDate => checkIn;
+  DateTime get checkOutDate => checkOut;
+  double get totalPrice => totalHarga;
+
   BookingModel copyWith({
-    String? id,
-    String? userId,
-    String? hotelId,
-    String? roomId,
-    String? guestName,
-    String? guestPhone,
-    DateTime? checkInDate,
-    DateTime? checkOutDate,
-    bool? hasBreakfast,
-    double? totalPrice,
-    String? paymentMethod,
-    String? status,
+    String? idBooking,
+    String? idUser,
+    DateTime? tanggalBooking,
+    DateTime? checkIn,
+    DateTime? checkOut,
+    double? totalHarga,
+    BookingStatus? status,
+    UserModel? user,
+    List<BookingAddonModel>? bookingAddons,
   }) {
     return BookingModel(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      hotelId: hotelId ?? this.hotelId,
-      roomId: roomId ?? this.roomId,
-      guestName: guestName ?? this.guestName,
-      guestPhone: guestPhone ?? this.guestPhone,
-      checkInDate: checkInDate ?? this.checkInDate,
-      checkOutDate: checkOutDate ?? this.checkOutDate,
-      hasBreakfast: hasBreakfast ?? this.hasBreakfast,
-      totalPrice: totalPrice ?? this.totalPrice,
-      paymentMethod: paymentMethod ?? this.paymentMethod,
+      idBooking: idBooking ?? this.idBooking,
+      idUser: idUser ?? this.idUser,
+      tanggalBooking: tanggalBooking ?? this.tanggalBooking,
+      checkIn: checkIn ?? this.checkIn,
+      checkOut: checkOut ?? this.checkOut,
+      totalHarga: totalHarga ?? this.totalHarga,
       status: status ?? this.status,
+      user: user ?? this.user,
+      bookingAddons: bookingAddons ?? this.bookingAddons,
     );
   }
 
-  // Digunakan HANYA jika ingin membaca riwayat transaksi dari API
   factory BookingModel.fromJson(Map<String, dynamic> json) {
     return BookingModel(
-      id: json['id']?.toString(),
-      userId: json['user_id']?.toString() ?? '',
-      hotelId: json['hotel_id']?.toString() ?? '',
-      roomId: json['room_id']?.toString() ?? '',
-      guestName: json['guest_name'] ?? '',
-      guestPhone: json['guest_phone'] ?? '',
-      // Parsing String ISO8601 ke DateTime Dart
-      checkInDate:
-          DateTime.tryParse(json['check_in_date'] ?? '') ?? DateTime.now(),
-      checkOutDate:
-          DateTime.tryParse(json['check_out_date'] ?? '') ?? DateTime.now(),
-      hasBreakfast: json['has_breakfast'] ?? false,
-      totalPrice: (json['total_price'] ?? 0.0).toDouble(),
-      paymentMethod: json['payment_method'] ?? '',
-      status: json['status'] ?? 'pending',
+      idBooking: (json['id_booking'] ?? json['id'])?.toString(),
+      idUser: (json['id_user'] ?? json['user_id'])?.toString() ?? '',
+      tanggalBooking: _parseDate(json['tanggal_booking']) ?? DateTime.now(),
+      checkIn: _parseDate(json['check_in']) ?? DateTime.now(),
+      checkOut: _parseDate(json['check_out']) ?? DateTime.now(),
+      totalHarga: _toDouble(json['total_harga'] ?? json['total_price']),
+      status: _statusFromJson(json['status']),
+      user: json['user'] is Map<String, dynamic>
+          ? UserModel.fromJson(json['user'] as Map<String, dynamic>)
+          : null,
+      bookingAddons: _parseBookingAddons(json['booking_addons']),
     );
   }
 
-  // Digunakan saat checkout/membayar untuk dikirim ke Laravel
   Map<String, dynamic> toJson() {
     return {
-      if (id != null) 'id': id, // Jangan kirim ID jika pesanan baru
-      'user_id': userId,
-      'hotel_id': hotelId,
-      'room_id': roomId,
-      'guest_name': guestName,
-      'guest_phone': guestPhone,
-      // API Laravel biasanya meminta format YYYY-MM-DD
-      'check_in_date': checkInDate.toIso8601String().split('T').first,
-      'check_out_date': checkOutDate.toIso8601String().split('T').first,
-      'has_breakfast': hasBreakfast,
-      'total_price': totalPrice,
-      'payment_method': paymentMethod,
-      'status': status,
+      if (idBooking != null) 'id_booking': idBooking,
+      'id_user': idUser,
+      'tanggal_booking': _formatDate(tanggalBooking),
+      'check_in': _formatDate(checkIn),
+      'check_out': _formatDate(checkOut),
+      'total_harga': totalHarga,
+      'status': status.name,
     };
+  }
+
+  static List<BookingAddonModel> _parseBookingAddons(dynamic value) {
+    if (value is! List) return const [];
+    return value
+        .whereType<Map<String, dynamic>>()
+        .map(BookingAddonModel.fromJson)
+        .toList();
+  }
+
+  static BookingStatus _statusFromJson(dynamic value) {
+    return BookingStatus.values.firstWhere(
+      (item) => item.name == value?.toString(),
+      orElse: () => BookingStatus.pending,
+    );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
+  }
+
+  static String _formatDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 }
