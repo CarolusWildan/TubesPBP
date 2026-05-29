@@ -23,8 +23,8 @@ import 'features/home/presentation/providers/booking_summary_provider.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final apiClient = ApiClient();
   final localStorageService = LocalStorageService();
+  final apiClient = ApiClient(storageService: localStorageService);
   final authRepository = AuthRepository(apiClient: apiClient);
 
   runApp(
@@ -36,9 +36,13 @@ void main() {
             storageService: localStorageService,
           )..checkLoginStatus(),
         ),
-        ChangeNotifierProvider(create: (context) => HomeProvider()),
+        ChangeNotifierProvider(
+          create: (context) => HomeProvider(apiClient: apiClient),
+        ),
         // Tambahkan BookingSummaryProvider
-        ChangeNotifierProvider(create: (context) => BookingSummaryProvider()),
+        ChangeNotifierProvider(
+          create: (context) => BookingSummaryProvider(apiClient: apiClient),
+        ),
       ],
       child: const HotelApp(),
     ),

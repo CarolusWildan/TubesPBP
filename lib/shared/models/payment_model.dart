@@ -1,43 +1,92 @@
-enum MetodePembayaran { transfer, ewallet, credit_card, virtual_account, qris }
+import 'booking_model.dart';
+
+enum MetodePembayaran {
+  ewallet('ewallet'),
+  creditCard('credit_card'),
+  virtualAccount('virtual_account');
+
+  const MetodePembayaran(this.value);
+  final String value;
+}
+
 enum StatusPembayaran { success, pending, cancel }
 
 class PaymentModel {
-  final String idPayment;
+  final String? idPayment;
   final String idBooking;
   final MetodePembayaran metodePembayaran;
   final double jumlahBayar;
   final StatusPembayaran statusPembayaran;
-  final DateTime createdAt;
-  final DateTime expiredAt;
+  final DateTime? expiredAt;
   final DateTime? paidAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final BookingModel? booking;
 
   PaymentModel({
-    required this.idPayment,
+    this.idPayment,
     required this.idBooking,
     required this.metodePembayaran,
     required this.jumlahBayar,
     required this.statusPembayaran,
-    required this.createdAt,
-    required this.expiredAt,
+    this.expiredAt,
     this.paidAt,
+    this.createdAt,
+    this.updatedAt,
+    this.booking,
   });
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) {
     return PaymentModel(
-      idPayment: json['id_payment']?.toString() ?? '',
+      idPayment: (json['id_payment'] ?? json['id'])?.toString(),
       idBooking: json['id_booking']?.toString() ?? '',
-      metodePembayaran: MetodePembayaran.values.firstWhere(
-        (e) => e.name == json['metode_pembayaran'],
-        orElse: () => MetodePembayaran.qris,
-      ),
-      jumlahBayar: (json['jumlah_bayar'] ?? 0.0).toDouble(),
-      statusPembayaran: StatusPembayaran.values.firstWhere(
-        (e) => e.name == json['status_pembayaran'],
-        orElse: () => StatusPembayaran.pending,
-      ),
-      createdAt: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
-      expiredAt: DateTime.parse(json['expired_at'] ?? DateTime.now().toIso8601String()),
-      paidAt: json['paid_at'] != null ? DateTime.parse(json['paid_at']) : null,
+      metodePembayaran: _metodeFromJson(json['metode_pembayaran']),
+      jumlahBayar: _toDouble(json['jumlah_bayar']),
+      statusPembayaran: _statusFromJson(json['status_pembayaran']),
+      expiredAt: _parseDate(json['expired_at']),
+      paidAt: _parseDate(json['paid_at']),
+      createdAt: _parseDate(json['created_at']),
+      updatedAt: _parseDate(json['updated_at']),
+      booking: json['booking'] is Map<String, dynamic>
+          ? BookingModel.fromJson(json['booking'] as Map<String, dynamic>)
+          : null,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (idPayment != null) 'id_payment': idPayment,
+      'id_booking': idBooking,
+      'metode_pembayaran': metodePembayaran.value,
+      'jumlah_bayar': jumlahBayar,
+      'status_pembayaran': statusPembayaran.name,
+      if (expiredAt != null) 'expired_at': expiredAt!.toIso8601String(),
+      if (paidAt != null) 'paid_at': paidAt!.toIso8601String(),
+    };
+  }
+
+  static MetodePembayaran _metodeFromJson(dynamic value) {
+    final raw = value?.toString();
+    return MetodePembayaran.values.firstWhere(
+      (item) => item.value == raw || item.name == raw,
+      orElse: () => MetodePembayaran.virtualAccount,
+    );
+  }
+
+  static StatusPembayaran _statusFromJson(dynamic value) {
+    return StatusPembayaran.values.firstWhere(
+      (item) => item.name == value?.toString(),
+      orElse: () => StatusPembayaran.pending,
+    );
+  }
+
+  static double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString());
   }
 }

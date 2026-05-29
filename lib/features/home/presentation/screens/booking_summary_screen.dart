@@ -137,9 +137,9 @@ class BookingSummaryScreen extends StatelessWidget {
                         SizedBox(
                           width: 180,
                           child: ElevatedButton(
-                            onPressed: () {
-                              // TODO: navigasi ke halaman pembayaran
-                            },
+                            onPressed: provider.isSubmitting
+                                ? null
+                                : () => _handlePayNow(context, provider),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF2E7D32),
                               foregroundColor: Colors.white,
@@ -148,13 +148,22 @@ class BookingSummaryScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Text(
-                              'Pay Now',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: provider.isSubmitting
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Pay Now',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -167,5 +176,34 @@ class BookingSummaryScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handlePayNow(
+    BuildContext context,
+    BookingSummaryProvider provider,
+  ) async {
+    try {
+      await provider.submitBookingPayment();
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            provider.lastPaymentId == null
+                ? 'Booking berhasil dibuat.'
+                : 'Booking dan pembayaran berhasil dibuat.',
+          ),
+          backgroundColor: const Color(0xFF2E7D32),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
   }
 }
