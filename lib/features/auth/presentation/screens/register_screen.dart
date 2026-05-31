@@ -115,8 +115,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     password: _passwordController.text,
                   );
                   if (success && mounted) {
-                    // Karena AuthWrapper mendeteksi token baru,
-                    // pop halaman ini agar kembali ke root dan AuthWrapper mengarahkan ke Home
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Register berhasil. Silakan sign in.'),
+                        backgroundColor: Color(0xFF0EA554),
+                      ),
+                    );
                     Navigator.pop(context);
                   }
                 },

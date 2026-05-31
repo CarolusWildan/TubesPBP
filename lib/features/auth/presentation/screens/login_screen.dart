@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Enter valid user name & password to continue',
+                'Enter your email and password to continue',
                 style: TextStyle(fontSize: 14, color: Colors.black54),
               ),
               const SizedBox(height: 32),
@@ -104,8 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     _passwordController.text,
                   );
                   if (success && mounted) {
-                    // Navigasi tidak perlu Navigator.push,
-                    // karena AuthWrapper di main.dart otomatis mendeteksi status login.
+                    Navigator.of(context).popUntil((route) => route.isFirst);
                   }
                 },
               ),
