@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/booking_summary_provider.dart';
+import '../../../../shared/models/hotel_model.dart';
+import '../../../../shared/network/api_client.dart';
 import '../../../../shared/widgets/addon_section.dart';
 import '../../../../shared/widgets/guest_info.dart';
 import '../../../../shared/widgets/payment_detail_section.dart';
@@ -10,7 +13,16 @@ import '../../../../shared/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
 
 class BookingSummaryScreen extends StatelessWidget {
-  const BookingSummaryScreen({super.key});
+  final HotelModel? hotel;
+  final DateTime? checkIn;
+  final DateTime? checkOut;
+
+  const BookingSummaryScreen({
+    super.key,
+    this.hotel,
+    this.checkIn,
+    this.checkOut,
+  });
 
   String _formatRupiah(double amount) {
     return amount
@@ -21,10 +33,39 @@ class BookingSummaryScreen extends StatelessWidget {
         );
   }
 
+  String _resolveImageUrl(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400';
+    }
+
+    final imagePath = value.trim();
+    final uri = Uri.tryParse(imagePath);
+    if (uri != null && uri.hasScheme) return imagePath;
+
+    final serverUrl = ApiClient.baseUrl.replaceFirst('/api', '');
+    if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
+    return '$serverUrl/storage/$imagePath';
+  }
+
+  String _roomSubtitle(HotelModel? hotel) {
+    if (hotel == null) return 'Room details belum tersedia';
+    if (hotel.facilityNames.isNotEmpty) {
+      return hotel.facilityNames.take(2).join(' - ');
+    }
+    if (hotel.kota.trim().isNotEmpty) return hotel.kota;
+    return 'Room details belum tersedia';
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => BookingSummaryProvider(),
+      create: (_) => BookingSummaryProvider(
+        apiClient: context.read<ApiClient>(),
+        checkIn: checkIn,
+        checkOut: checkOut,
+        guestUser: context.read<AuthProvider>().user,
+        hotelId: hotel?.idHotel,
+      ),
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
@@ -44,48 +85,52 @@ class BookingSummaryScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // 1. Info kamar
               RoomInfoCard(
-                hotelName: 'Capella Ubud, Bali',
-                roomType: '1 Bedroom Villa • 1 King Bed',
-                rating: 4.9,
-                imageUrl:
-                    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400',
+                hotelName: hotel?.namaHotel ?? 'Hotel belum dipilih',
+                roomType: _roomSubtitle(hotel),
+                rating: hotel?.rating ?? 0,
+                imageUrl: _resolveImageUrl(hotel?.hotelImage),
               ),
               const SizedBox(height: 12),
-
-              // 2. Info trip
-              TripInfoSection(
-                checkIn: DateTime(2024, 11, 15),
-                checkOut: DateTime(2024, 11, 17),
-                jumlahMalam: 2,
+              Consumer<BookingSummaryProvider>(
+                builder: (context, provider, _) {
+                  return TripInfoSection(
+                    checkIn: provider.checkInDate,
+                    checkOut: provider.checkOutDate,
+                    jumlahMalam: provider.jumlahMalam,
+                  );
+                },
               ),
               const SizedBox(height: 12),
-
-              // 3. Addon / Enhance Your Stay
               const AddonSection(),
               const SizedBox(height: 12),
+              Consumer<BookingSummaryProvider>(
+                builder: (context, provider, _) {
+                  final guest = provider.guestUser;
 
-              // 4. Guest information
-              const GuestInfoSection(
-                name: 'Vinsensius Devando Febrilian',
-                email: 'devangaming@gmail.com',
-                phone: '08123456789',
+                  if (guest == null) {
+                    return GuestInfoSection(
+                      name: 'Data tamu belum tersedia',
+                      email: provider.guestErrorMessage ?? '-',
+                      phone: '-',
+                    );
+                  }
+
+                  return GuestInfoSection(
+                    name: guest.nama,
+                    email: guest.email,
+                    phone: guest.noHp ?? '-',
+                  );
+                },
               ),
               const SizedBox(height: 12),
-
-              // 5. Payment method
               const PaymentMethodSection(),
               const SizedBox(height: 12),
-
-              // 6. Payment detail
               const PaymentDetailSection(),
               const SizedBox(height: 16),
             ],
           ),
         ),
-
-        // Bottom bar: total + tombol Pay Now
         bottomNavigationBar: Consumer<BookingSummaryProvider>(
           builder: (context, provider, _) {
             return Container(
@@ -106,10 +151,9 @@ class BookingSummaryScreen extends StatelessWidget {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Row(
-                      mainAxisSize: MainAxisSize.min, // Row mengikuti ukuran isi
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Total
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisSize: MainAxisSize.min,
@@ -132,8 +176,6 @@ class BookingSummaryScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(width: 16),
-
-                        // Tombol Pay Now
                         SizedBox(
                           width: 180,
                           child: ElevatedButton(

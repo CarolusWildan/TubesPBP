@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:tubes_hotel/core/services/local_storage_service.dart';
 import 'package:tubes_hotel/features/auth/data/auth_repository.dart';
@@ -42,17 +44,17 @@ class AuthProvider extends ChangeNotifier {
       final token = await _storageService.getToken();
       
       if (token != null && token.isNotEmpty) {
-        // SEMENTARA KITA MOCK DATA USER-NYA:
-        // Idealnya ini melakukan fetch ke API Laravel (/api/profile) menggunakan token
-        _user = UserModel(
-          id: '1', 
-          fullName: 'Tamu Terdaftar', 
-          email: 'user@hotel.com', 
-          phoneNumber: '08123456789'
-        );
+        final userJson = await _storageService.getUser();
+        if (userJson != null && userJson.isNotEmpty) {
+          final decodedUser = jsonDecode(userJson);
+          if (decodedUser is Map<String, dynamic>) {
+            _user = UserModel.fromJson(decodedUser);
+          }
+        }
       }
     } catch (e) {
       await _storageService.deleteToken();
+      await _storageService.deleteUser();
       _user = null;
     } finally {
       _isCheckingAuth = false;
@@ -75,6 +77,7 @@ class AuthProvider extends ChangeNotifier {
 
       // 3. Simpan data user ke memory state Provider
       _user = result['user'] as UserModel;
+      await _storageService.saveUser(jsonEncode(_user!.toJson()));
       
       _setLoading(false);
       return true; // Beri tahu UI bahwa login sukses
@@ -97,17 +100,16 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final result = await _authRepository.register(
+      await _authRepository.register(
         fullName: fullName,
         email: email,
         phoneNumber: phoneNumber,
         password: password,
       );
 
-      final String token = result['token'];
-      await _storageService.saveToken(token);
-      
-      _user = result['user'] as UserModel;
+      await _storageService.deleteToken();
+      await _storageService.deleteUser();
+      _user = null;
 
       _setLoading(false);
       return true;
@@ -123,6 +125,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     // Idealnya panggil _authRepository.logout() juga jika Laravel butuh mencabut token (revoke)
     await _storageService.deleteToken();
+    await _storageService.deleteUser();
     _user = null;
     notifyListeners();
   }

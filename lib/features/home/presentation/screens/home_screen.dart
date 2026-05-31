@@ -5,6 +5,7 @@ import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/home_provider.dart';
+import 'booking_date_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -333,7 +334,7 @@ class _HomeContent extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Available stays from Laravel API.',
+                'Available stays for You',
                 style: TextStyle(fontSize: 13, color: Colors.black54),
               ),
               const SizedBox(height: 16),
@@ -370,91 +371,103 @@ class _HotelListItem extends StatelessWidget {
         .join(', ');
     final rating = hotel.rating;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BookingDateScreen(hotel: hotel),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: hotelImage(hotel.hotelImage, width: 100, height: 100),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  hotel.namaHotel,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: hotelImage(hotel.hotelImage, width: 100, height: 100),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hotel.namaHotel,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      size: 12,
-                      color: Colors.black45,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        location.isEmpty ? '-' : location,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.black54,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                if (rating != null) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.star, size: 14, color: Colors.orange),
+                      const Icon(
+                        Icons.location_on,
+                        size: 12,
+                        color: Colors.black45,
+                      ),
                       const SizedBox(width: 4),
-                      Text(
-                        rating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          location.isEmpty ? '-' : location,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
+                  if (rating != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.orange),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (hotel.facilityNames.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      hotel.facilityNames.take(3).join(', '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          const TextStyle(fontSize: 11, color: Colors.black45),
+                    ),
+                  ],
                 ],
-                if (hotel.facilityNames.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    hotel.facilityNames.take(3).join(', '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Colors.black45),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

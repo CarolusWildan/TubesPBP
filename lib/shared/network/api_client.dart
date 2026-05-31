@@ -28,7 +28,7 @@ class ApiClient {
   }
 
   /// Fungsi GET untuk mengambil data (Daftar Hotel, Profil, dsb)
-  Future<dynamic> get(String endpoint) async {
+  Future<dynamic> get(String endpoint, {bool unwrapData = true}) async {
     final token = await _getToken();
 
     try {
@@ -37,14 +37,18 @@ class ApiClient {
         headers: _buildHeaders(token),
       );
 
-      return _processResponse(response);
+      return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception('Gagal terhubung ke server: $e');
     }
   }
 
   /// Fungsi POST untuk mengirim data (Login, Register, Checkout Booking)
-  Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
+  Future<dynamic> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool unwrapData = true,
+  }) async {
     final token = await _getToken();
 
     try {
@@ -54,14 +58,17 @@ class ApiClient {
         body: json.encode(body),
       );
 
-      return _processResponse(response);
+      return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception('Gagal mengirim data ke server: $e');
     }
   }
 
   /// Fungsi internal untuk menangani standarisasi respon Laravel
-  dynamic _processResponse(http.Response response) {
+  dynamic _processResponse(
+    http.Response response, {
+    required bool unwrapData,
+  }) {
     final decodedJson = response.body.isEmpty
         ? null
         : json.decode(response.body);
@@ -69,7 +76,7 @@ class ApiClient {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       // Asumsi Laravel menggunakan wrapper: { "status": "success", "data": [...] }
       // Jika Laravel tidak menggunakan wrapper, langsung return decodedJson;
-      if (decodedJson is Map<String, dynamic>) {
+      if (unwrapData && decodedJson is Map<String, dynamic>) {
         return decodedJson['data'] ?? decodedJson;
       }
       return decodedJson;

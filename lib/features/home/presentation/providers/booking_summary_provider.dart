@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/models/user_model.dart';
 import '../../../../shared/network/api_client.dart';
 
 class AddonItem {
@@ -31,16 +32,37 @@ class PaymentMethodItem {
 }
 
 class BookingSummaryProvider extends ChangeNotifier {
-  BookingSummaryProvider({ApiClient? apiClient})
-      : _apiClient = apiClient ?? ApiClient();
+  BookingSummaryProvider({
+    ApiClient? apiClient,
+    DateTime? checkIn,
+    DateTime? checkOut,
+    UserModel? guestUser,
+    String? hotelId,
+  })  : _apiClient = apiClient ?? ApiClient(),
+        checkInDate = checkIn ?? _dateOnly(DateTime.now()),
+        checkOutDate =
+            checkOut ?? _dateOnly(DateTime.now()).add(const Duration(days: 1)),
+        _guestUser = guestUser,
+        hotelId = hotelId ?? '';
 
   final ApiClient _apiClient;
+  final DateTime checkInDate;
+  final DateTime checkOutDate;
+  final String hotelId;
 
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
 
   String? _lastPaymentId;
   String? get lastPaymentId => _lastPaymentId;
+
+  UserModel? _guestUser;
+  UserModel? get guestUser => _guestUser;
+
+  String? get guestErrorMessage {
+    if (_guestUser != null) return null;
+    return 'Silakan login terlebih dahulu.';
+  }
 
   // Addon list
   final List<AddonItem> addons = [
@@ -81,7 +103,10 @@ class BookingSummaryProvider extends ChangeNotifier {
   final double subtotalOrder = 20970134;
   final double serviceFee = 10000;
   final double discount = 0;
-  final int jumlahMalam = 2;
+  int get jumlahMalam {
+    final nights = checkOutDate.difference(checkInDate).inDays;
+    return nights <= 0 ? 1 : nights;
+  }
 
   // Hitung total addon
   double get totalAddons => addons
@@ -107,6 +132,17 @@ class BookingSummaryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateGuest(UserModel? user) {
+    if (_guestUser?.idUser == user?.idUser &&
+        _guestUser?.email == user?.email &&
+        _guestUser?.noHp == user?.noHp) {
+      return;
+    }
+
+    _guestUser = user;
+    notifyListeners();
+  }
+
   Future<void> submitBookingPayment() async {
     if (_isSubmitting) return;
 
@@ -114,12 +150,17 @@ class BookingSummaryProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final userId = await _getOrCreateDemoUserId();
+      final user = _guestUser;
+      if (user == null || user.idUser.isEmpty) {
+        throw Exception('Silakan login terlebih dahulu sebelum booking.');
+      }
+
       final booking = await _apiClient.post('/bookings', {
-        'id_user': userId,
+        'id_user': user.idUser,
+        if (hotelId.isNotEmpty) 'id_hotel': hotelId,
         'tanggal_booking': _formatDate(DateTime.now()),
-        'check_in': '2024-11-15',
-        'check_out': '2024-11-17',
+        'check_in': _formatDate(checkInDate),
+        'check_out': _formatDate(checkOutDate),
         'total_harga': totalPayment,
         'status': 'pending',
       });
@@ -142,51 +183,13 @@ class BookingSummaryProvider extends ChangeNotifier {
     }
   }
 
-  Future<String> _getOrCreateDemoUserId() async {
-    final usersResponse = await _apiClient.get('/users');
-    final List users;
-    if (usersResponse is List) {
-      users = usersResponse;
-    } else if (usersResponse is Map<String, dynamic> &&
-        usersResponse['data'] is List) {
-      users = usersResponse['data'] as List;
-    } else {
-      users = const [];
-    }
-
-    if (users.isEmpty) {
-      final user = await _apiClient.post('/users', {
-        'nama': 'Vinsensius Devando Febrilian',
-        'email': 'devangaming@gmail.com',
-        'password': 'Password123',
-        'no_hp': '08123456789',
-        'alamat': 'Yogyakarta',
-      });
-
-      final userId = user['id_user']?.toString();
-      if (userId == null || userId.isEmpty) {
-        throw Exception('Gagal membuat user demo untuk booking.');
-      }
-
-      return userId;
-    }
-
-    final firstUser = users.first;
-    if (firstUser is! Map<String, dynamic>) {
-      throw Exception('Format data user dari Laravel tidak sesuai.');
-    }
-
-    final userId = firstUser['id_user']?.toString();
-    if (userId == null || userId.isEmpty) {
-      throw Exception('Field id_user tidak ditemukan dari data user Laravel.');
-    }
-
-    return userId;
-  }
-
   String _formatDate(DateTime date) {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '${date.year}-$month-$day';
+  }
+
+  static DateTime _dateOnly(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
   }
 }

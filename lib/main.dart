@@ -1,24 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// --- CORE & SHARED IMPORTS ---
 import 'core/services/local_storage_service.dart';
-import 'shared/network/api_client.dart';
-
-// --- AUTH IMPORTS ---
 import 'features/auth/data/auth_repository.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
-
-// --- SPLASH IMPORTS ---
-import 'features/splash/presentation/screens/get_started_screen.dart';
-
-// --- HOME IMPORTS ---
 import 'features/home/presentation/providers/home_provider.dart';
 import 'features/home/presentation/screens/main_screen.dart';
-
-// --- BOOKING IMPORTS ---
-import 'features/home/presentation/screens/booking_summary_screen.dart';
-import 'features/home/presentation/providers/booking_summary_provider.dart';
+import 'features/splash/presentation/screens/get_started_screen.dart';
+import 'shared/network/api_client.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +19,7 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
+        Provider<ApiClient>.value(value: apiClient),
         ChangeNotifierProvider(
           create: (context) => AuthProvider(
             authRepository: authRepository,
@@ -38,10 +28,6 @@ void main() {
         ),
         ChangeNotifierProvider(
           create: (context) => HomeProvider(apiClient: apiClient),
-        ),
-        // Tambahkan BookingSummaryProvider
-        ChangeNotifierProvider(
-          create: (context) => BookingSummaryProvider(apiClient: apiClient),
         ),
       ],
       child: const HotelApp(),
@@ -62,16 +48,11 @@ class HotelApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
       ),
-
-      // TODO: Ganti ke MainScreen() / AuthWrapper() setelah selesai preview
-      // home: const BookingSummaryScreen(), // ← sementara untuk preview
-      home: const MainScreen(),
-      // home: const AuthWrapper(),
+      home: const AuthWrapper(),
     );
   }
 }
 
-/// AUTH WRAPPER: "Satpam Navigasi Dinamis"
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -79,7 +60,6 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
-        // SKENARIO 1: APLIKASI BARU DIBUKA
         if (authProvider.isCheckingAuth) {
           return Scaffold(
             backgroundColor: Colors.white,
@@ -111,12 +91,10 @@ class AuthWrapper extends StatelessWidget {
           );
         }
 
-        // SKENARIO 2: SUDAH LOGIN
         if (authProvider.isAuthenticated) {
           return const MainScreen();
         }
 
-        // SKENARIO 3: BELUM LOGIN
         return const GetStartedScreen();
       },
     );
