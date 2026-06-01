@@ -11,6 +11,7 @@ import '../../../../shared/widgets/payment_detail_section.dart';
 import '../../../../shared/widgets/payment_method_section.dart';
 import '../../../../shared/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
+import 'payment_instruction_screen.dart';
 
 class BookingSummaryScreen extends StatelessWidget {
   final HotelModel? hotel;
@@ -225,17 +226,26 @@ class BookingSummaryScreen extends StatelessWidget {
     BookingSummaryProvider provider,
   ) async {
     try {
+      final selectedPaymentMethod = provider.selectedPaymentMethod;
       await provider.submitBookingPayment();
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            provider.lastPaymentId == null
-                ? 'Booking berhasil dibuat.'
-                : 'Booking dan pembayaran berhasil dibuat.',
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentInstructionScreen(
+            hotelName: hotel?.namaHotel ?? 'Hotel belum dipilih',
+            roomType: _roomSubtitle(hotel),
+            rating: hotel?.rating ?? 0,
+            imageUrl: _resolveImageUrl(hotel?.hotelImage),
+            checkIn: provider.checkInDate,
+            checkOut: provider.checkOutDate,
+            jumlahMalam: provider.jumlahMalam,
+            paymentMethodId: selectedPaymentMethod.id,
+            paymentMethodName: selectedPaymentMethod.name,
+            paymentId: provider.lastPaymentId,
+            totalPayment: provider.totalPayment,
           ),
-          backgroundColor: const Color(0xFF2E7D32),
         ),
       );
     } catch (e) {

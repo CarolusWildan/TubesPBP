@@ -88,7 +88,7 @@ class BookingSummaryProvider extends ChangeNotifier {
 
   // Payment methods
   final List<PaymentMethodItem> paymentMethods = [
-    PaymentMethodItem(id: 'virtual_account', name: 'Qris', icon: Icons.qr_code),
+    PaymentMethodItem(id: 'virtual_account', name: 'QRIS', icon: Icons.qr_code),
     PaymentMethodItem(
       id: 'credit_card',
       name: 'Credit Card',
