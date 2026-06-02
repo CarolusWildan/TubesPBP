@@ -7,16 +7,33 @@ class AddonItem {
   final String id;
   final String name;
   final double pricePerNight;
-  final String emoji;
   bool isSelected;
+  int quantity;
 
   AddonItem({
     required this.id,
     required this.name,
     required this.pricePerNight,
-    required this.emoji,
     this.isSelected = false,
+    this.quantity = 0,
   });
+
+  bool get isPerPax => id == '1' || id == '2' || id == '4';
+
+  IconData get icon {
+    switch (id) {
+      case '1':
+        return Icons.local_taxi_outlined;
+      case '2':
+        return Icons.spa_outlined;
+      case '3':
+        return Icons.schedule_outlined;
+      case '4':
+        return Icons.map_outlined;
+      default:
+        return Icons.add_circle_outline;
+    }
+  }
 }
 
 class PaymentMethodItem {
@@ -24,11 +41,7 @@ class PaymentMethodItem {
   final String name;
   final IconData icon;
 
-  PaymentMethodItem({
-    required this.id,
-    required this.name,
-    required this.icon,
-  });
+  PaymentMethodItem({required this.id, required this.name, required this.icon});
 }
 
 class BookingSummaryProvider extends ChangeNotifier {
@@ -38,12 +51,12 @@ class BookingSummaryProvider extends ChangeNotifier {
     DateTime? checkOut,
     UserModel? guestUser,
     String? hotelId,
-  })  : _apiClient = apiClient ?? ApiClient(),
-        checkInDate = checkIn ?? _dateOnly(DateTime.now()),
-        checkOutDate =
-            checkOut ?? _dateOnly(DateTime.now()).add(const Duration(days: 1)),
-        _guestUser = guestUser,
-        hotelId = hotelId ?? '';
+  }) : _apiClient = apiClient ?? ApiClient(),
+       checkInDate = checkIn ?? _dateOnly(DateTime.now()),
+       checkOutDate =
+           checkOut ?? _dateOnly(DateTime.now()).add(const Duration(days: 1)),
+       _guestUser = guestUser,
+       hotelId = hotelId ?? '';
 
   final ApiClient _apiClient;
   final DateTime checkInDate;
@@ -66,24 +79,10 @@ class BookingSummaryProvider extends ChangeNotifier {
 
   // Addon list
   final List<AddonItem> addons = [
-    AddonItem(
-      id: '1',
-      name: 'Breakfast',
-      pricePerNight: 125000,
-      emoji: '🍳',
-    ),
-    AddonItem(
-      id: '2',
-      name: 'Massage',
-      pricePerNight: 125000,
-      emoji: '💆',
-    ),
-    AddonItem(
-      id: '3',
-      name: 'Late Checkout (16:00)',
-      pricePerNight: 125000,
-      emoji: '🕓',
-    ),
+    AddonItem(id: '1', name: 'Airport Transfer', pricePerNight: 50000),
+    AddonItem(id: '2', name: 'Massage', pricePerNight: 100000),
+    AddonItem(id: '3', name: 'Late Checkout', pricePerNight: 125000),
+    AddonItem(id: '4', name: 'Tour Domestic', pricePerNight: 80000),
   ];
 
   // Payment methods
@@ -109,21 +108,46 @@ class BookingSummaryProvider extends ChangeNotifier {
   }
 
   // Hitung total addon
-  double get totalAddons => addons
-      .where((a) => a.isSelected)
-      .fold(0.0, (sum, a) => sum + (a.pricePerNight * jumlahMalam));
+  double get totalAddons => addons.fold(0.0, (sum, addon) {
+    if (addon.isPerPax) {
+      return sum + (addon.pricePerNight * jumlahMalam * addon.quantity);
+    }
+
+    if (addon.isSelected) {
+      return sum + (addon.pricePerNight * jumlahMalam);
+    }
+
+    return sum;
+  });
 
   // Hitung total bayar
-  double get totalPayment => subtotalOrder + serviceFee - discount + totalAddons;
+  double get totalPayment =>
+      subtotalOrder + serviceFee - discount + totalAddons;
 
   // Getter payment method terpilih
   PaymentMethodItem get selectedPaymentMethod => paymentMethods.firstWhere(
-        (m) => m.id == selectedPaymentMethodId,
-        orElse: () => paymentMethods.first,
-      );
+    (m) => m.id == selectedPaymentMethodId,
+    orElse: () => paymentMethods.first,
+  );
 
   void toggleAddon(int index) {
     addons[index].isSelected = !addons[index].isSelected;
+    notifyListeners();
+  }
+
+  void increaseAddonQuantity(int index) {
+    final addon = addons[index];
+    if (!addon.isPerPax) return;
+
+    addon.quantity++;
+    notifyListeners();
+  }
+
+  void decreaseAddonQuantity(int index) {
+    final addon = addons[index];
+    if (!addon.isPerPax || addon.quantity == 0) return;
+
+    addon.quantity--;
     notifyListeners();
   }
 
