@@ -9,7 +9,11 @@ class ApiClient {
   // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
   //static const String baseUrl = '<LINK NGROK>/api';
   static const String baseUrl =
-      'https://mortality-emote-creasing.ngrok-free.dev/api';
+      'https://preppy-unfunded-sacred.ngrok-free.dev/api';
+  static String get serverUrl => baseUrl.replaceFirst('/api', '');
+  static const Map<String, String> imageHeaders = {
+    'ngrok-skip-browser-warning': 'true',
+  };
 
   final LocalStorageService? _storageService;
 

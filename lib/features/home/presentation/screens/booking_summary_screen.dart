@@ -43,7 +43,7 @@ class BookingSummaryScreen extends StatelessWidget {
     final uri = Uri.tryParse(imagePath);
     if (uri != null && uri.hasScheme) return imagePath;
 
-    final serverUrl = ApiClient.baseUrl.replaceFirst('/api', '');
+    final serverUrl = ApiClient.serverUrl;
     if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
     return '$serverUrl/storage/$imagePath';
   }
