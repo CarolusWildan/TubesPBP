@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../../shared/models/user_model.dart';
 import '../../../../shared/network/api_client.dart';
 
@@ -21,6 +23,17 @@ class AuthRepository {
     } catch (e) {
       // Menangkap error dari ApiClient (misal: "Error 401: Email/Password salah")
       rethrow;
+    }
+  }
+  
+  Future<void> logout() async {
+    try {
+      // Memanggil endpoint logout di Laravel untuk menghapus token di sisi server
+      await apiClient.post('/logout', {}, unwrapData: false);
+    } catch (e) {
+      // Kita menelan error ini (tidak me-rethrow). 
+      // Kenapa? Jika user sedang offline/tidak ada sinyal, mereka tetap HARUS BISA logout dari memori lokal HP-nya.
+      debugPrint('Warning: Gagal menghapus token di server: $e');
     }
   }
 
@@ -111,3 +124,4 @@ class AuthRepository {
     return current;
   }
 }
+
