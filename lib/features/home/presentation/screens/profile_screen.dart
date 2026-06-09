@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../splash/presentation/screens/get_started_screen.dart';
+// 1. UBAH IMPORT: Kita ganti GetStartedScreen dengan LoginScreen
+import '../../../auth/presentation/screens/login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -160,8 +161,9 @@ class ProfileScreen extends StatelessWidget {
     await context.read<AuthProvider>().logout();
     if (!context.mounted) return;
 
+    // 2. UBAH NAVIGASI: Arahkan ke LoginScreen, bukan GetStartedScreen
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const GetStartedScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
