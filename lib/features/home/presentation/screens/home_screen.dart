@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../shared/models/hotel_model.dart';
@@ -30,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final uri = Uri.tryParse(imagePath);
     if (uri != null && uri.hasScheme) return imagePath;
 
-    final serverUrl = ApiClient.baseUrl.replaceFirst('/api', '');
+    final serverUrl = ApiClient.serverUrl;
     if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
     return '$serverUrl/storage/$imagePath';
   }
@@ -56,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Image.network(
       resolvedUrl,
+      headers: kIsWeb ? null : ApiClient.imageHeaders,
       width: width,
       height: height,
       fit: BoxFit.cover,
@@ -109,11 +111,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 1.2,
                           ),
                         ),
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 24,
                           backgroundColor: Colors.white24,
-                          backgroundImage: NetworkImage(
-                            'https://i.pravatar.cc/150?img=11',
+                          child: Text(
+                            userName.isEmpty ? 'G' : userName[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
                         ),
                       ],
@@ -153,8 +160,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 size: 20,
                               ),
                               border: InputBorder.none,
-                              contentPadding:
-                                  EdgeInsets.symmetric(vertical: 18),
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: 18,
+                              ),
                             ),
                           ),
                         ),
@@ -190,9 +198,9 @@ class _HomeContent extends StatelessWidget {
   final List<HotelModel> hotels;
   final List<String> destinationCities;
   final HotelModel? Function(List<HotelModel> hotels, String city)
-      firstHotelInCity;
+  firstHotelInCity;
   final Widget Function(String? imageUrl, {double? width, double? height})
-      hotelImage;
+  hotelImage;
 
   @override
   Widget build(BuildContext context) {
@@ -362,22 +370,21 @@ class _HotelListItem extends StatelessWidget {
 
   final HotelModel hotel;
   final Widget Function(String? imageUrl, {double? width, double? height})
-      hotelImage;
+  hotelImage;
 
   @override
   Widget build(BuildContext context) {
-    final location = [hotel.alamat, hotel.kota]
-        .where((value) => value.trim().isNotEmpty)
-        .join(', ');
+    final location = [
+      hotel.alamat,
+      hotel.kota,
+    ].where((value) => value.trim().isNotEmpty).join(', ');
     final rating = hotel.rating;
 
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => BookingDateScreen(hotel: hotel),
-          ),
+          MaterialPageRoute(builder: (_) => BookingDateScreen(hotel: hotel)),
         );
       },
       borderRadius: BorderRadius.circular(16),
@@ -459,8 +466,10 @@ class _HotelListItem extends StatelessWidget {
                       hotel.facilityNames.take(3).join(', '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(fontSize: 11, color: Colors.black45),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black45,
+                      ),
                     ),
                   ],
                 ],
