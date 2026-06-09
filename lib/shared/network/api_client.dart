@@ -2,15 +2,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/services/local_storage_service.dart';
 
-/// ApiClient bertindak sebagai gerbang tunggal untuk semua komunikasi keluar.
-/// Ini mengisolasi logika HTTP (Headers, Tokens, Error Handling) dari Repositori.
 class ApiClient {
   ApiClient({LocalStorageService? storageService})
-      : _storageService = storageService;
+    : _storageService = storageService;
 
-  // Ganti IP ini dengan IP Localhost Anda jika menggunakan emulator
-  // Android Emulator = 10.0.2.2 | iOS Simulator = 127.0.0.1 | Physical Device = IP WiFi Laptop
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
+  //static const String baseUrl = '<LINK NGROK>/api';
+  static const String baseUrl =
+      'https://mortality-emote-creasing.ngrok-free.dev/api';
 
   final LocalStorageService? _storageService;
 
@@ -21,29 +20,26 @@ class ApiClient {
   Map<String, String> _buildHeaders(String? token) {
     return {
       'Content-Type': 'application/json',
-      'Accept':
-          'application/json', // Wajib untuk Laravel agar me-return JSON saat error
+      'Accept': 'application/json',
+      'ngrok-skip-browser-warning':
+          'true', // 2. WAJIB UNTUK BYPASS HALAMAN NGROK
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 
-  /// Fungsi GET untuk mengambil data (Daftar Hotel, Profil, dsb)
   Future<dynamic> get(String endpoint, {bool unwrapData = true}) async {
     final token = await _getToken();
-
     try {
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
         headers: _buildHeaders(token),
       );
-
       return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception('Gagal terhubung ke server: $e');
     }
   }
 
-  /// Fungsi POST untuk mengirim data (Login, Register, Checkout Booking)
   Future<dynamic> post(
     String endpoint,
     Map<String, dynamic> body, {
@@ -51,41 +47,54 @@ class ApiClient {
   }) async {
     final token = await _getToken();
 
+    http.Response response;
+
+    // 1. Blok ini HANYA untuk menangkap gagal koneksi (Internet mati, Server down)
     try {
-      final response = await http.post(
+      response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: _buildHeaders(token),
         body: json.encode(body),
       );
-
-      return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
-      throw Exception('Gagal mengirim data ke server: $e');
+      throw Exception(
+        'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+      );
     }
+
+    // 2. Blok ini untuk membaca jawaban Laravel (termasuk error validasi)
+    return _processResponse(response, unwrapData: unwrapData);
   }
 
-  /// Fungsi internal untuk menangani standarisasi respon Laravel
-  dynamic _processResponse(
-    http.Response response, {
-    required bool unwrapData,
-  }) {
-    final decodedJson = response.body.isEmpty
-        ? null
-        : json.decode(response.body);
+  // 3. PERBAIKAN LOGIKA PARSING RESPONSE
+  dynamic _processResponse(http.Response response, {required bool unwrapData}) {
+    if (response.body.isEmpty) return null;
+
+    // A. Validasi Tipe Konten: Pastikan server benar-benar merespon dengan JSON
+    final contentType = response.headers['content-type'] ?? '';
+    final isJson = contentType.contains('application/json');
+
+    if (!isJson) {
+      // Jika bukan JSON (misal Ngrok Error HTML atau Laravel Fatal Error HTML)
+      throw Exception(
+        'Server merespons dengan format yang tidak valid (bukan JSON). Status Code: ${response.statusCode}',
+      );
+    }
+
+    // B. Aman untuk di-decode karena kita yakin formatnya JSON
+    final decodedJson = json.decode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      // Asumsi Laravel menggunakan wrapper: { "status": "success", "data": [...] }
-      // Jika Laravel tidak menggunakan wrapper, langsung return decodedJson;
       if (unwrapData && decodedJson is Map<String, dynamic>) {
         return decodedJson['data'] ?? decodedJson;
       }
       return decodedJson;
     } else {
-      // Jika terjadi error (401, 404, 500), ambil pesan error dari Laravel
+      // Penanganan Error dari Backend (400, 401, 422, dsb)
       final errorMessage = decodedJson is Map<String, dynamic>
           ? decodedJson['message'] ?? 'Terjadi kesalahan tidak diketahui'
           : 'Terjadi kesalahan tidak diketahui';
-      throw Exception('Error ${response.statusCode}: $errorMessage');
+      throw Exception(errorMessage);
     }
   }
 }
