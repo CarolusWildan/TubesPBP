@@ -7,6 +7,12 @@ import '../../../../shared/network/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/home_provider.dart';
 import 'booking_date_screen.dart';
+import 'pencarian&daftarhotel_screen.dart';
+
+const _kPrimaryColor = Color(0xFF0EA554);
+const _kBackgroundColor = Color(0xFFF8F9FA);
+const _kCardBackground = Colors.white;
+const _kShadowColor = Color(0x1F000000);
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -80,10 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final userName = authProvider.user?.fullName.split(' ').first ?? 'Guest';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: _kBackgroundColor,
       body: homeProvider.isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF0EA554)),
+              child: CircularProgressIndicator(color: _kPrimaryColor),
             )
           : RefreshIndicator(
               color: const Color(0xFF0EA554),
@@ -93,79 +99,259 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverAppBar(
                     pinned: true,
                     floating: false,
-                    backgroundColor: const Color(0xFF0EA554),
+                    expandedHeight: 240,
+                    backgroundColor: Colors.transparent,
                     elevation: 0,
-                    automaticallyImplyLeading: false,
-                    toolbarHeight: 90,
-                    titleSpacing: 24,
-                    title: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Find Your Hotel\n$userName',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
+                    flexibleSpace: Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF0EA554), Color(0xFF22C36B)],
                         ),
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.white24,
-                          child: Text(
-                            userName.isEmpty ? 'G' : userName[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(30),
                         ),
-                      ],
+                      ),
                     ),
-                    bottom: PreferredSize(
-                      preferredSize: const Size.fromHeight(60),
-                      child: Container(
-                        transform: Matrix4.translationValues(0, 25, 0),
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Container(
-                          height: 55,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.08),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: const TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Search hotels or destinations...',
-                              hintStyle: TextStyle(
-                                color: Colors.black45,
-                                fontSize: 14,
-                              ),
-                              prefixIcon: Icon(
-                                Icons.search,
-                                color: Color(0xFF0EA554),
-                              ),
-                              suffixIcon: Icon(
-                                Icons.cancel,
-                                color: Colors.black38,
-                                size: 20,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                vertical: 18,
+                    titleSpacing: 0,
+                    automaticallyImplyLeading: false,
+                    title: Padding(
+                      padding: const EdgeInsets.only(
+                        top: 16,
+                        right: 24,
+                        left: 24,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Find Your Hotel',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                        ),
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: Colors.white,
+                            foregroundImage:
+                                _resolveImageUrl(
+                                      authProvider.user?.userImage,
+                                    ) !=
+                                    null
+                                ? NetworkImage(
+                                    _resolveImageUrl(
+                                      authProvider.user?.userImage,
+                                    )!,
+                                  )
+                                : null,
+                            child: authProvider.user?.userImage == null
+                                ? Text(
+                                    userName.isEmpty
+                                        ? 'G'
+                                        : userName[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      color: _kPrimaryColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                    iconTheme: const IconThemeData(color: Colors.white),
+                    bottom: PreferredSize(
+                      preferredSize: const Size.fromHeight(170),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Container(
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                  color: const Color(0xFFD9D9D9),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const SizedBox(width: 18),
+                                  const Icon(
+                                    Icons.search,
+                                    color: _kPrimaryColor,
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const PencarianDaftarHotelScreen(),
+                                          ),
+                                        );
+                                      },
+                                      child: const Text(
+                                        'Search hotels or destinations...',
+                                        style: TextStyle(
+                                          color: Color(0xFF9E9E9E),
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 14),
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF2F2F2),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 18,
+                                      color: Color(0xFF9E9E9E),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Curated Destinations',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Discover premier escapes to begin your journey.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          SizedBox(
+                            height: 190,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              clipBehavior: Clip.none,
+                              itemCount: homeProvider.destinationCities.length,
+                              itemBuilder: (context, index) {
+                                final city =
+                                    homeProvider.destinationCities[index];
+                                final sampleHotel = _firstHotelInCity(
+                                  homeProvider.hotels,
+                                  city,
+                                );
+                                final totalHotels = homeProvider.hotels
+                                    .where((hotel) => hotel.kota.trim() == city)
+                                    .length;
+
+                                return Container(
+                                  width: 190,
+                                  margin: const EdgeInsets.only(right: 16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(24),
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.08),
+                                        blurRadius: 18,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: _hotelImage(
+                                            sampleHotel?.hotelImage,
+                                            width: double.infinity,
+                                            height: 190,
+                                          ),
+                                        ),
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.bottomCenter,
+                                                end: Alignment.topCenter,
+                                                colors: [
+                                                  Colors.black.withOpacity(
+                                                    0.22,
+                                                  ),
+                                                  Colors.transparent,
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Positioned(
+                                          left: 16,
+                                          right: 16,
+                                          bottom: 16,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                city,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                '$totalHotels hotel tersedia',
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -232,120 +418,27 @@ class _HomeContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 50),
+        const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Curated Destinations',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Discover cities from available hotels.',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 190,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  clipBehavior: Clip.none,
-                  itemCount: destinationCities.length,
-                  itemBuilder: (context, index) {
-                    final city = destinationCities[index];
-                    final sampleHotel = firstHotelInCity(hotels, city);
-                    final totalHotels = hotels
-                        .where((hotel) => hotel.kota.trim() == city)
-                        .length;
-
-                    return Container(
-                      width: 180,
-                      margin: const EdgeInsets.only(right: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(16),
-                            ),
-                            child: hotelImage(
-                              sampleHotel?.hotelImage,
-                              height: 110,
-                              width: double.infinity,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  city,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '$totalHotels hotel tersedia',
-                                  style: const TextStyle(
-                                    color: Colors.black45,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 32),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const SizedBox(height: 24),
               const Text(
                 'Hotels',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               const Text(
-                'Available stays for You',
+                'Available stays for you with best rate',
                 style: TextStyle(fontSize: 13, color: Colors.black54),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -390,23 +483,24 @@ class _HotelListItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          color: _kCardBackground,
+          borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: _kShadowColor,
+              blurRadius: 14,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: hotelImage(hotel.hotelImage, width: 100, height: 100),
+              borderRadius: BorderRadius.circular(16),
+              child: hotelImage(hotel.hotelImage, width: 108, height: 108),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -422,7 +516,7 @@ class _HotelListItem extends StatelessWidget {
                       fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       const Icon(
@@ -430,12 +524,12 @@ class _HotelListItem extends StatelessWidget {
                         size: 12,
                         color: Colors.black45,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           location.isEmpty ? '-' : location,
                           style: const TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             color: Colors.black54,
                           ),
                           maxLines: 1,
@@ -444,32 +538,90 @@ class _HotelListItem extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (rating != null) ...[
-                    const SizedBox(height: 6),
+                  const SizedBox(height: 12),
+                  if (rating != null)
                     Row(
                       children: [
-                        const Icon(Icons.star, size: 14, color: Colors.orange),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 6,
+                            horizontal: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _kPrimaryColor.withOpacity(0.14),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 14,
+                                color: _kPrimaryColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                rating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _kPrimaryColor,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        if (hotel.minPrice != null) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Mulai dari Rp ${hotel.minPrice!.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ],
+                    ),
+                  if (hotel.minPrice != null && rating == null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Mulai dari Rp ${hotel.minPrice!.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ],
                   if (hotel.facilityNames.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      hotel.facilityNames.take(3).join(', '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black45,
-                      ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: hotel.facilityNames.take(3).map((facility) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F8F4),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            facility,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF4B6E53),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ],
