@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 
 import '../../../../shared/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
+import 'history_screen.dart';
+import 'main_screen.dart';
 
 class PaymentInstructionScreen extends StatelessWidget {
   final String hotelName;
@@ -40,10 +42,20 @@ class PaymentInstructionScreen extends StatelessWidget {
   }
 
   String _formatRupiah(double amount) {
-    return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]}.',
-        )}';
+    return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
+  }
+
+  HistoryBookingItem _buildPendingHistoryItem() {
+    return HistoryBookingItem(
+      orderId: _paymentReference,
+      hotelName: hotelName,
+      location: roomType,
+      imageUrl: imageUrl,
+      checkIn: checkIn,
+      checkOut: checkOut,
+      totalPayment: totalPayment,
+      paymentStatus: 'Payment Pending',
+    );
   }
 
   @override
@@ -96,9 +108,7 @@ class PaymentInstructionScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(
-              top: BorderSide(color: Colors.grey.shade200),
-            ),
+            border: Border(top: BorderSide(color: Colors.grey.shade200)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -107,11 +117,15 @@ class PaymentInstructionScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Payment status is still pending.'),
-                        backgroundColor: Color(0xFF0EA554),
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MainScreen(
+                          initialIndex: 1,
+                          latestBooking: _buildPendingHistoryItem(),
+                        ),
                       ),
+                      (route) => false,
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -134,7 +148,16 @@ class PaymentInstructionScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.popUntil(context, (route) => route.isFirst);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MainScreen(
+                          initialIndex: 0,
+                          latestBooking: _buildPendingHistoryItem(),
+                        ),
+                      ),
+                      (route) => false,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0EA554),
@@ -245,10 +268,7 @@ class _CreditCardPayment extends StatelessWidget {
   final String reference;
   final String amount;
 
-  const _CreditCardPayment({
-    required this.reference,
-    required this.amount,
-  });
+  const _CreditCardPayment({required this.reference, required this.amount});
 
   @override
   Widget build(BuildContext context) {
@@ -276,7 +296,7 @@ class _CreditCardPayment extends StatelessWidget {
                 Text(
                   'PAYMENT REF',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -311,16 +331,13 @@ class _EWalletPayment extends StatelessWidget {
   final String reference;
   final String amount;
 
-  const _EWalletPayment({
-    required this.reference,
-    required this.amount,
-  });
+  const _EWalletPayment({required this.reference, required this.amount});
 
   @override
   Widget build(BuildContext context) {
-    final expiry = DateFormat('HH:mm').format(
-      DateTime.now().add(const Duration(minutes: 30)),
-    );
+    final expiry = DateFormat(
+      'HH:mm',
+    ).format(DateTime.now().add(const Duration(minutes: 30)));
 
     return Container(
       width: double.infinity,
@@ -490,10 +507,7 @@ class _QrCodePainter extends CustomPainter {
     final black = Paint()..color = Colors.black;
 
     void drawCell(int x, int y) {
-      canvas.drawRect(
-        Rect.fromLTWH(x * cell, y * cell, cell, cell),
-        black,
-      );
+      canvas.drawRect(Rect.fromLTWH(x * cell, y * cell, cell, cell), black);
     }
 
     void drawFinder(int startX, int startY) {
