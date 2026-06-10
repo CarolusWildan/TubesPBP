@@ -10,6 +10,7 @@ class HotelModel {
   final String? email;
   final String? noHp;
   final String? hotelImage;
+  final double? minPrice;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<FacilityModel> facilities;
@@ -24,6 +25,7 @@ class HotelModel {
     this.email,
     this.noHp,
     this.hotelImage,
+    this.minPrice,
     this.createdAt,
     this.updatedAt,
     this.facilities = const [],
@@ -34,7 +36,8 @@ class HotelModel {
   String get address => alamat;
   String get description => deskripsi ?? '';
   List<String> get imageUrls => hotelImage == null ? [] : [hotelImage!];
-  List<String> get facilityNames => facilities.map((item) => item.namaFacility).toList();
+  List<String> get facilityNames =>
+      facilities.map((item) => item.namaFacility).toList();
 
   factory HotelModel.fromJson(Map<String, dynamic> json) {
     return HotelModel(
@@ -47,6 +50,7 @@ class HotelModel {
       email: json['email']?.toString(),
       noHp: json['no_hp']?.toString(),
       hotelImage: json['hotel_image']?.toString(),
+      minPrice: _toDouble(json['min_price']),
       createdAt: _parseDate(json['created_at']),
       updatedAt: _parseDate(json['updated_at']),
       facilities: _parseFacilities(json['facilities']),
