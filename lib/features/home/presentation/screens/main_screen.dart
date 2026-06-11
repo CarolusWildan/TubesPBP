@@ -1,21 +1,31 @@
 import 'package:flutter/material.dart';
+import 'history_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialIndex;
+  final HistoryBookingItem? latestBooking;
+
+  const MainScreen({super.key, this.initialIndex = 0, this.latestBooking});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, 2);
+  }
 
   // Daftar halaman untuk navigasi bawah
-  final List<Widget> _pages = [
+  List<Widget> get _pages => [
     const HomeScreen(),
-    const Center(child: Text('Trips / Booking Screen (Coming Soon)')),
+    HistoryScreen(latestBooking: widget.latestBooking),
     const ProfileScreen(),
   ];
 
