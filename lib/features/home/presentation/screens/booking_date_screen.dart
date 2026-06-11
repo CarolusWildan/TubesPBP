@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../shared/models/hotel_model.dart';
+import '../../../../shared/models/room_model.dart';
 import 'booking_summary_screen.dart';
 
 class BookingDateScreen extends StatefulWidget {
   final HotelModel hotel;
+  final RoomModel? room;
 
   const BookingDateScreen({
     super.key,
     required this.hotel,
+    this.room,
   });
 
   @override
@@ -138,6 +141,7 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                   MaterialPageRoute(
                     builder: (_) => BookingSummaryScreen(
                       hotel: widget.hotel,
+                      room: widget.room,
                       checkIn: _checkIn,
                       checkOut: _checkOut,
                     ),

@@ -52,19 +52,32 @@ class BookingSummaryProvider extends ChangeNotifier {
     DateTime? checkOut,
     UserModel? guestUser,
     String? hotelId,
-    String? roomId, // Menerima lemparan ID Kamar bertipe String (varchar)
+    String? roomId,
+    double? initialRoomPrice,
   }) : _apiClient = apiClient ?? ApiClient(),
        checkInDate = checkIn ?? _dateOnly(DateTime.now()),
-       checkOutDate = checkOut ?? _dateOnly(DateTime.now()).add(const Duration(days: 1)),
+       checkOutDate =
+           checkOut ?? _dateOnly(DateTime.now()).add(const Duration(days: 1)),
        _guestUser = guestUser,
        hotelId = hotelId ?? '',
-       _injectedRoomId = roomId;
+       _injectedRoomId = roomId,
+       _roomPricePerNight = initialRoomPrice ?? 0;
 
   final ApiClient _apiClient;
   final DateTime checkInDate;
   final DateTime checkOutDate;
   final String hotelId;
-  final String? _injectedRoomId; 
+  final String? _injectedRoomId;
+
+  RoomModel? _selectedRoom;
+  double _roomPricePerNight;
+  int _roomCapacity = 2;
+  bool _isLoadingRoom = false;
+  String? _roomErrorMessage;
+
+  bool get isLoadingRoom => _isLoadingRoom;
+  String? get roomErrorMessage => _roomErrorMessage;
+  RoomModel? get selectedRoom => _selectedRoom;
 
   bool _isSubmitting = false;
   bool get isSubmitting => _isSubmitting;
@@ -80,7 +93,6 @@ class BookingSummaryProvider extends ChangeNotifier {
     return 'Silakan login terlebih dahulu.';
   }
 
-  // Addon list
   final List<AddonItem> addons = [
     AddonItem(id: '1', name: 'Airport Transfer', pricePerNight: 50000),
     AddonItem(id: '2', name: 'Massage', pricePerNight: 100000),
@@ -88,19 +100,21 @@ class BookingSummaryProvider extends ChangeNotifier {
     AddonItem(id: '4', name: 'Tour Domestic', pricePerNight: 80000),
   ];
 
-  // Payment methods (ID disesuaikan dengan nilai konstanta model Laravel Anda)
   final List<PaymentMethodItem> paymentMethods = [
     PaymentMethodItem(id: 'qris', name: 'QRIS', icon: Icons.qr_code),
-    PaymentMethodItem(id: 'credit_card', name: 'Credit Card', icon: Icons.credit_card),
+    PaymentMethodItem(
+      id: 'credit_card',
+      name: 'Credit Card',
+      icon: Icons.credit_card,
+    ),
     PaymentMethodItem(id: 'ewallet', name: 'E-Wallet', icon: Icons.wallet),
   ];
 
   String selectedPaymentMethodId = 'qris';
 
-  // Base booking data
-  final double subtotalOrder = 20970134;
-  final double serviceFee = 10000;
-  final double discount = 0;
+  double get subtotalOrder => _roomPricePerNight * jumlahMalam;
+  double get serviceFee => 10000;
+  double get discount => 0;
 
   int get jumlahMalam {
     final nights = checkOutDate.difference(checkInDate).inDays;
@@ -120,7 +134,7 @@ class BookingSummaryProvider extends ChangeNotifier {
   double get totalPayment => subtotalOrder + serviceFee - discount + totalAddons;
 
   PaymentMethodItem get selectedPaymentMethod => paymentMethods.firstWhere(
-    (m) => m.id == selectedPaymentMethodId,
+    (method) => method.id == selectedPaymentMethodId,
     orElse: () => paymentMethods.first,
   );
 
@@ -158,6 +172,24 @@ class BookingSummaryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadRoomData() async {
+    if (_isLoadingRoom || _selectedRoom != null) return;
+
+    _isLoadingRoom = true;
+    _roomErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final room = await _loadSelectedRoom();
+      _applyRoom(room);
+    } catch (e) {
+      _roomErrorMessage = e.toString().replaceFirst('Exception: ', '');
+    } finally {
+      _isLoadingRoom = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> submitBookingPayment() async {
     if (_isSubmitting) return;
 
@@ -170,23 +202,22 @@ class BookingSummaryProvider extends ChangeNotifier {
         throw Exception('Silakan login terlebih dahulu sebelum booking.');
       }
 
-      // Evaluasi data ID Room
-      String finalRoomId = _injectedRoomId ?? '';
-      int roomCapacity = 2;
-      double roomPrice = subtotalOrder / jumlahMalam;
-
-      if (finalRoomId.isEmpty) {
-        final room = await _loadAvailableRoom();
-        finalRoomId = room.idRoom;
-        roomCapacity = room.capacity;
-        if (room.pricePerNight > 0) {
-          roomPrice = room.pricePerNight;
-        }
+      if (_selectedRoom == null) {
+        final room = await _loadSelectedRoom();
+        _applyRoom(room);
       }
 
-      final roomSubtotal = roomPrice * jumlahMalam;
+      final finalRoomId = _selectedRoom?.idRoom ?? _injectedRoomId ?? '';
+      final roomPrice = _roomPricePerNight;
 
-      // 1. Hit API POST /api/bookings
+      if (finalRoomId.isEmpty) {
+        throw Exception('Room untuk hotel ini belum tersedia.');
+      }
+
+      if (roomPrice <= 0) {
+        throw Exception('Harga kamar belum tersedia.');
+      }
+
       final booking = await _apiClient.post('/bookings', {
         'id_user': user.idUser,
         if (hotelId.isNotEmpty) 'id_hotel': hotelId,
@@ -197,42 +228,23 @@ class BookingSummaryProvider extends ChangeNotifier {
         'harga_per_malam': roomPrice,
         'harga': roomPrice,
         'jumlah_kamar': 1,
-        'jumlah_tamu': roomCapacity,
+        'jumlah_tamu': _roomCapacity,
         'jumlah_malam': jumlahMalam,
-        'subtotal': roomSubtotal,
-        'subtotal_harga': roomSubtotal,
+        'subtotal': subtotalOrder,
+        'subtotal_harga': subtotalOrder,
         'total_harga': totalPayment,
         'status': 'pending',
         'metode_pembayaran': selectedPaymentMethodId,
       });
 
-      // Ambil String id_booking dari data root atau bungkus response Laravel
-      String? bookingId;
-      if (booking['data'] != null && booking['data']['id_booking'] != null) {
-        bookingId = booking['data']['id_booking']?.toString();
-      } else {
-        bookingId = booking['id_booking']?.toString();
-      }
-
+      final bookingId = _extractBookingId(booking);
       if (bookingId == null || bookingId.isEmpty) {
         throw Exception('ID booking tidak ditemukan dari response Laravel.');
       }
 
-      // 2. Hit API POST /api/payments
-      final payment = await _apiClient.post('/payments', {
-        'id_booking': bookingId, // Dikirim berupa String murni (VARCHAR)
-        'metode_pembayaran': selectedPaymentMethodId,
-        'jumlah_bayar': totalPayment,
-      });
-
-      // 🔴 Solusi Ekstraksi ID: Mengambil data string 'PAY00X' dari dalam nested JSON map Laravel
-      if (payment['data'] != null && payment['data']['id_payment'] != null) {
-        _lastPaymentId = payment['data']['id_payment'].toString();
-      } else {
-        _lastPaymentId = payment['id_payment']?.toString();
-      }
+      _lastPaymentId = _extractPaymentId(booking);
     } catch (e) {
-      debugPrint("Gagal memproses transaksi: $e");
+      debugPrint('Gagal memproses transaksi: $e');
       rethrow;
     } finally {
       _isSubmitting = false;
@@ -240,16 +252,28 @@ class BookingSummaryProvider extends ChangeNotifier {
     }
   }
 
+  Future<RoomModel> _loadSelectedRoom() async {
+    final roomId = _injectedRoomId;
+    if (roomId != null && roomId.isNotEmpty) {
+      final response = await _apiClient.get('/rooms/$roomId');
+      if (response is Map<String, dynamic>) {
+        return RoomModel.fromJson(response);
+      }
+    }
+
+    return _loadAvailableRoom();
+  }
+
   Future<RoomModel> _loadAvailableRoom() async {
     if (hotelId.isEmpty) {
       throw Exception('Hotel belum dipilih.');
     }
 
-    final response = await _apiClient.get('/rooms');
+    final query = Uri(queryParameters: {'id_hotel': hotelId}).query;
+    final response = await _apiClient.get('/rooms/available?$query');
     final rooms = _extractList(response)
         .whereType<Map<String, dynamic>>()
         .map(RoomModel.fromJson)
-        .where((room) => room.idHotel == hotelId)
         .toList();
 
     if (rooms.isEmpty) {
@@ -262,6 +286,15 @@ class BookingSummaryProvider extends ChangeNotifier {
     );
   }
 
+  void _applyRoom(RoomModel room) {
+    _selectedRoom = room;
+    _roomCapacity = room.capacity;
+
+    if (room.pricePerNight > 0) {
+      _roomPricePerNight = room.pricePerNight;
+    }
+  }
+
   List<dynamic> _extractList(dynamic response) {
     if (response is List) return response;
     if (response is Map<String, dynamic>) {
@@ -271,6 +304,41 @@ class BookingSummaryProvider extends ChangeNotifier {
       if (response['rooms'] is List) return response['rooms'] as List;
     }
     return const [];
+  }
+
+  String? _extractBookingId(dynamic booking) {
+    if (booking is! Map<String, dynamic>) return null;
+
+    final data = booking['data'];
+    if (data is Map<String, dynamic>) {
+      return data['id_booking']?.toString() ?? data['id']?.toString();
+    }
+
+    return booking['id_booking']?.toString() ?? booking['id']?.toString();
+  }
+
+  String? _extractPaymentId(dynamic booking) {
+    if (booking is! Map<String, dynamic>) return null;
+
+    final data = booking['data'];
+    if (data is Map<String, dynamic>) {
+      return _extractPaymentId(data);
+    }
+
+    final payment = booking['payments'] ?? booking['payment'];
+    if (payment is Map<String, dynamic>) {
+      return payment['id_payment']?.toString() ?? payment['id']?.toString();
+    }
+
+    if (payment is List && payment.isNotEmpty) {
+      final firstPayment = payment.first;
+      if (firstPayment is Map<String, dynamic>) {
+        return firstPayment['id_payment']?.toString() ??
+            firstPayment['id']?.toString();
+      }
+    }
+
+    return booking['id_payment']?.toString();
   }
 
   String _formatDate(DateTime date) {
