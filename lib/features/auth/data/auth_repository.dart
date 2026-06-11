@@ -25,13 +25,38 @@ class AuthRepository {
       rethrow;
     }
   }
-  
+
+  Future<UserModel> updateProfile({
+    required String fullName,
+    required String phoneNumber,
+  }) async {
+    try {
+      // Asumsi endpoint Laravel: PUT /user/profile atau POST /user/profile
+      // Jika menggunakan POST untuk update, biasanya Laravel butuh _method: 'PUT'
+      final response = await apiClient.post('/profile', {
+        'nama': fullName,
+        'no_hp': phoneNumber,
+      }, unwrapData: false);
+
+      // Membaca data user yang dikembalikan oleh Laravel setelah update
+      final userJson = _readMap(response, ['user', 'data.user', 'data']);
+
+      if (userJson == null) {
+        throw Exception('Gagal membaca data profil terbaru dari server.');
+      }
+
+      return UserModel.fromJson(userJson);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     try {
       // Memanggil endpoint logout di Laravel untuk menghapus token di sisi server
       await apiClient.post('/logout', {}, unwrapData: false);
     } catch (e) {
-      // Kita menelan error ini (tidak me-rethrow). 
+      // Kita menelan error ini (tidak me-rethrow).
       // Kenapa? Jika user sedang offline/tidak ada sinyal, mereka tetap HARUS BISA logout dari memori lokal HP-nya.
       debugPrint('Warning: Gagal menghapus token di server: $e');
     }
@@ -88,10 +113,7 @@ class AuthRepository {
       throw Exception('Data user tidak ditemukan dari response Laravel.');
     }
 
-    return {
-      'token': token ?? '',
-      'user': user,
-    };
+    return {'token': token ?? '', 'user': user};
   }
 
   String? _readString(Map<String, dynamic> source, List<String> paths) {
@@ -124,4 +146,3 @@ class AuthRepository {
     return current;
   }
 }
-
