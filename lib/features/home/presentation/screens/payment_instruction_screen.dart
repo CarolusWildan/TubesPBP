@@ -35,10 +35,11 @@ class PaymentInstructionScreen extends StatelessWidget {
   });
 
   String get _paymentReference {
-    final source = paymentId == null || paymentId!.isEmpty
-        ? 'PITULUNGAN-${DateTime.now().millisecondsSinceEpoch}'
-        : paymentId!;
-    return source.padLeft(8, '0').toUpperCase();
+    if (paymentId != null && paymentId!.isNotEmpty) {
+      return paymentId!.toUpperCase();
+    }
+    final fallback = 'PIT-${DateTime.now().millisecondsSinceEpoch}';
+    return fallback.toUpperCase();
   }
 
   String _formatRupiah(double amount) {
@@ -47,7 +48,7 @@ class PaymentInstructionScreen extends StatelessWidget {
 
   HistoryBookingItem _buildPendingHistoryItem() {
     return HistoryBookingItem(
-      orderId: _paymentReference,
+      idPayment: _paymentReference,
       hotelName: hotelName,
       location: roomType,
       imageUrl: imageUrl,
