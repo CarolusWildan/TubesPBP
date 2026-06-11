@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../providers/home_provider.dart';
-import 'booking_date_screen.dart';
+import 'detail_kamar_screen.dart';
 
 const _kPrimaryColor = Color(0xFF0EA554);
 const _kBackgroundColor = Color(0xFFF8F9FA);
@@ -89,6 +89,11 @@ class _PencarianDaftarHotelScreenState
   @override
   Widget build(BuildContext context) {
     final homeProvider = context.watch<HomeProvider>();
+    final isPriceSort = homeProvider.sortBy == HotelSortOption.price;
+    final isRatingSort = homeProvider.sortBy == HotelSortOption.rating;
+    final sortIcon = homeProvider.sortAscending
+        ? Icons.keyboard_arrow_up
+        : Icons.keyboard_arrow_down;
 
     return Scaffold(
       backgroundColor: _kBackgroundColor,
@@ -208,20 +213,35 @@ class _PencarianDaftarHotelScreenState
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            side: const BorderSide(color: Color(0xFFD9D9D9)),
+                            backgroundColor: isPriceSort
+                                ? const Color(0xFFE8F5E9)
+                                : Colors.white,
+                            foregroundColor: isPriceSort
+                                ? _kPrimaryColor
+                                : Colors.black87,
+                            side: BorderSide(
+                              color: isPriceSort
+                                  ? _kPrimaryColor
+                                  : const Color(0xFFD9D9D9),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
                             ),
                           ),
-                          onPressed: () {},
+                          onPressed: () => homeProvider.toggleSortOption(
+                            HotelSortOption.price,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Text('Price'),
-                              SizedBox(width: 8),
-                              Icon(Icons.keyboard_arrow_down, size: 20),
+                            children: [
+                              const Text('Price'),
+                              const SizedBox(width: 8),
+                              Icon(
+                                isPriceSort
+                                    ? sortIcon
+                                    : Icons.keyboard_arrow_down,
+                                size: 20,
+                              ),
                             ],
                           ),
                         ),
@@ -230,20 +250,35 @@ class _PencarianDaftarHotelScreenState
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            side: const BorderSide(color: Color(0xFFD9D9D9)),
+                            backgroundColor: isRatingSort
+                                ? const Color(0xFFE8F5E9)
+                                : Colors.white,
+                            foregroundColor: isRatingSort
+                                ? _kPrimaryColor
+                                : Colors.black87,
+                            side: BorderSide(
+                              color: isRatingSort
+                                  ? _kPrimaryColor
+                                  : const Color(0xFFD9D9D9),
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
                             ),
                           ),
-                          onPressed: () {},
+                          onPressed: () => homeProvider.toggleSortOption(
+                            HotelSortOption.rating,
+                          ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Text('Rating'),
-                              SizedBox(width: 8),
-                              Icon(Icons.keyboard_arrow_down, size: 20),
+                            children: [
+                              const Text('Rating'),
+                              const SizedBox(width: 8),
+                              Icon(
+                                isRatingSort
+                                    ? sortIcon
+                                    : Icons.keyboard_arrow_down,
+                                size: 20,
+                              ),
                             ],
                           ),
                         ),
@@ -334,7 +369,7 @@ class _HotelSearchListItem extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => BookingDateScreen(hotel: hotel)),
+          MaterialPageRoute(builder: (_) => DetailKamarScreen(hotel: hotel)),
         );
       },
       borderRadius: BorderRadius.circular(16),

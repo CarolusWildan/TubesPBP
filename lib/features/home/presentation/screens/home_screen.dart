@@ -6,7 +6,7 @@ import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/home_provider.dart';
-import 'booking_date_screen.dart';
+import 'detail_kamar_screen.dart';
 import 'pencarian&daftarhotel_screen.dart';
 
 const _kPrimaryColor = Color(0xFF0EA554);
@@ -477,7 +477,7 @@ class _HotelListItem extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => BookingDateScreen(hotel: hotel)),
+          MaterialPageRoute(builder: (_) => DetailKamarScreen(hotel: hotel)),
         );
       },
       borderRadius: BorderRadius.circular(16),
