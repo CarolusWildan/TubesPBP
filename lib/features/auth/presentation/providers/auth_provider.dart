@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:tubes_hotel/core/services/local_storage_service.dart';
 import 'package:tubes_hotel/features/auth/data/auth_repository.dart';
@@ -62,6 +62,41 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Tambahkan di dalam AuthProvider
+  Future<bool> updateProfile({
+    required String fullName,
+    required String phone,
+    required String address,
+    File? imageFile,
+  }) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // 1. Panggil API Laravel melalui Repository
+      // Pastikan _authRepository.updateProfile mengembalikan object UserModel terbaru
+      final updatedUser = await _authRepository.updateProfile(
+        fullName: fullName,
+        phoneNumber: phone,
+        address: address,
+        imageFile: imageFile,
+      );
+
+      // 2. Perbarui state lokal
+      _user = updatedUser;
+
+      // 3. Timpa data lama di Local Storage
+      await _storageService.saveUser(jsonEncode(_user!.toJson()));
+
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false); // Otomatis memanggil notifyListeners()
+    }
+  }
+
   // Fungsi Login
   Future<bool> login(String email, String password) async {
     _setLoading(true);
@@ -84,20 +119,20 @@ class AuthProvider extends ChangeNotifier {
     // --- 2. PANGGIL API LARAVEL ---
     try {
       final result = await _authRepository.login(email, password);
-      
+
       final String token = result['token'];
       await _storageService.saveToken(token);
 
       _user = result['user'] as UserModel;
       await _storageService.saveUser(jsonEncode(_user!.toJson()));
-      
+
       _setLoading(false);
-      return true; 
+      return true;
     } catch (e) {
       _setLoading(false);
-      _errorMessage = e.toString().replaceAll('Exception: ', ''); 
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
-      return false; 
+      return false;
     }
   }
 

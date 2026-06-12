@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 // 1. UBAH IMPORT: Kita ganti GetStartedScreen dengan LoginScreen
 import '../../../auth/presentation/screens/login_screen.dart';
+import 'personal_info_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -18,10 +19,10 @@ class ProfileScreen extends StatelessWidget {
     final user = authProvider.user;
     final displayName = user?.fullName.trim().isNotEmpty == true
         ? user!.fullName
-        : 'Astro Tankenira';
+        : 'User';
     final email = user?.email.trim().isNotEmpty == true
         ? user!.email
-        : 'astrogaming@gmail.com';
+        : 'user@gmail.com';
 
     return Container(
       color: _primaryGreen,
@@ -112,7 +113,14 @@ class ProfileScreen extends StatelessWidget {
                     _ProfileMenuTile(
                       icon: Icons.person_outline,
                       title: 'Personal Information',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PersonalInfoScreen(),
+                          ),
+                        );
+                      },
                     ),
                     _ProfileMenuTile(
                       icon: Icons.lock_outline,

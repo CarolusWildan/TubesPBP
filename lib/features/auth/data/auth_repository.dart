@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-
+import 'dart:io';
 import '../../../../shared/models/user_model.dart';
 import '../../../../shared/network/api_client.dart';
 
@@ -25,13 +25,49 @@ class AuthRepository {
       rethrow;
     }
   }
-  
+
+  Future<UserModel> updateProfile({
+    required String fullName,
+    required String phoneNumber,
+    required String address,
+    File? imageFile,
+  }) async {
+    try {
+      // 1. Bungkus data teks ke dalam variabel 'fields' (Map<String, String>)
+      final fields = {
+        'nama': fullName,
+        'no_hp': phoneNumber,
+        'alamat': address,
+      };
+
+      // 2. HANYA gunakan postMultipart. Jangan panggil apiClient.post yang lama.
+      final response = await apiClient.postMultipart(
+        '/profile', 
+        fields,
+        file: imageFile, 
+        fileField: 'user_image', 
+        unwrapData: false,
+      );
+
+      // 3. Baca respons dari Laravel
+      final userJson = _readMap(response, ['user', 'data.user', 'data']);
+
+      if (userJson == null) {
+        throw Exception('Gagal membaca data profil terbaru dari server.');
+      }
+
+      return UserModel.fromJson(userJson);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     try {
       // Memanggil endpoint logout di Laravel untuk menghapus token di sisi server
       await apiClient.post('/logout', {}, unwrapData: false);
     } catch (e) {
-      // Kita menelan error ini (tidak me-rethrow). 
+      // Kita menelan error ini (tidak me-rethrow).
       // Kenapa? Jika user sedang offline/tidak ada sinyal, mereka tetap HARUS BISA logout dari memori lokal HP-nya.
       debugPrint('Warning: Gagal menghapus token di server: $e');
     }
@@ -88,10 +124,7 @@ class AuthRepository {
       throw Exception('Data user tidak ditemukan dari response Laravel.');
     }
 
-    return {
-      'token': token ?? '',
-      'user': user,
-    };
+    return {'token': token ?? '', 'user': user};
   }
 
   String? _readString(Map<String, dynamic> source, List<String> paths) {
@@ -124,4 +157,3 @@ class AuthRepository {
     return current;
   }
 }
-
