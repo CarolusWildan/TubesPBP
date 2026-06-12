@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-
+import 'dart:io';
 import '../../../../shared/models/user_model.dart';
 import '../../../../shared/network/api_client.dart';
 
@@ -29,16 +29,27 @@ class AuthRepository {
   Future<UserModel> updateProfile({
     required String fullName,
     required String phoneNumber,
+    required String address,
+    File? imageFile,
   }) async {
     try {
-      // Asumsi endpoint Laravel: PUT /user/profile atau POST /user/profile
-      // Jika menggunakan POST untuk update, biasanya Laravel butuh _method: 'PUT'
-      final response = await apiClient.post('/profile', {
+      // 1. Bungkus data teks ke dalam variabel 'fields' (Map<String, String>)
+      final fields = {
         'nama': fullName,
         'no_hp': phoneNumber,
-      }, unwrapData: false);
+        'alamat': address,
+      };
 
-      // Membaca data user yang dikembalikan oleh Laravel setelah update
+      // 2. HANYA gunakan postMultipart. Jangan panggil apiClient.post yang lama.
+      final response = await apiClient.postMultipart(
+        '/profile', 
+        fields,
+        file: imageFile, 
+        fileField: 'user_image', 
+        unwrapData: false,
+      );
+
+      // 3. Baca respons dari Laravel
       final userJson = _readMap(response, ['user', 'data.user', 'data']);
 
       if (userJson == null) {

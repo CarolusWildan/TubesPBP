@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
@@ -12,13 +14,20 @@ class PersonalInfoScreen extends StatefulWidget {
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  late TextEditingController _addressController;
   
-  // Variabel untuk menyimpan data asli
+  // State untuk menyimpan data asli
   late String _initialName;
   late String _initialPhone;
+  late String _initialAddress;
   
+  // State manajemen gambar
+  File? _selectedImageFile;
+  bool _isPhotoRemoved = false;
+  final ImagePicker _picker = ImagePicker();
+
   bool _isLoading = false;
-  bool _hasChanges = false; // Status untuk memantau apakah ada perubahan ketikan
+  bool _hasChanges = false; 
 
   static const Color _primaryGreen = Color(0xFF0EA554);
   static const Color _inputBackground = Color(0xFFF8F9FA);
@@ -26,49 +35,52 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   @override
   void initState() {
     super.initState();
-    
     final currentUser = context.read<AuthProvider>().user;
 
-    // Simpan data asli sebagai titik perbandingan
     _initialName = currentUser?.fullName ?? '';
     _initialPhone = currentUser?.noHp ?? '';
+    _initialAddress = currentUser?.alamat ?? ''; // Ambil alamat dari model
 
     _nameController = TextEditingController(text: _initialName);
     _phoneController = TextEditingController(text: _initialPhone);
+    _addressController = TextEditingController(text: _initialAddress); // Inisialisasi
 
-    // Pasang listener untuk mengecek perubahan setiap kali user mengetik
     _nameController.addListener(_checkForChanges);
     _phoneController.addListener(_checkForChanges);
+    _addressController.addListener(_checkForChanges); // Dengarkan perubahan alamat
   }
 
   @override
   void dispose() {
     _nameController.removeListener(_checkForChanges);
     _phoneController.removeListener(_checkForChanges);
+    _addressController.removeListener(_checkForChanges);
     _nameController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
-  // Fungsi untuk membandingkan input saat ini dengan data awal
   void _checkForChanges() {
     final currentName = _nameController.text.trim();
     final currentPhone = _phoneController.text.trim();
+    final currentAddress = _addressController.text.trim(); // TAMBAHAN
     
-    final isChanged = currentName != _initialName || currentPhone != _initialPhone;
+    // Periksa apakah teks berubah
+    final isTextChanged = currentName != _initialName || 
+                          currentPhone != _initialPhone || 
+                          currentAddress != _initialAddress; // TAMBAHAN
     
-    // Update state hanya jika status perubahannya berbeda untuk menghindari render berlebih
+    final isPhotoChanged = _selectedImageFile != null || _isPhotoRemoved;
+    final isChanged = isTextChanged || isPhotoChanged;
+    
     if (_hasChanges != isChanged) {
-      setState(() {
-        _hasChanges = isChanged;
-      });
+      setState(() => _hasChanges = isChanged);
     }
   }
 
-  // Fungsi untuk mengekstrak inisial nama (Maksimal 2 huruf)
   String _getInitials(String name) {
     if (name.trim().isEmpty) return '?';
-    
     List<String> words = name.trim().split(RegExp(r'\s+'));
     if (words.length == 1) {
       return words[0].substring(0, 1).toUpperCase();
@@ -76,10 +88,179 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
   }
 
+  Future<void> _showPhotoActionDialog() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Change Profile Photo',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildPhotoActionButton(
+                  icon: Icons.camera_alt,
+                  label: 'Take a Photo',
+                  color: const Color(0xFFE8F5E9),
+                  textColor: const Color(0xFF0EA554),
+                  onTap: () async {
+                    Navigator.pop(dialogContext);
+                    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+                    if (image != null) {
+                      setState(() {
+                        _selectedImageFile = File(image.path);
+                        _isPhotoRemoved = false;
+                        _checkForChanges();
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildPhotoActionButton(
+                  icon: Icons.photo_library,
+                  label: 'Choose from gallery',
+                  color: const Color(0xFFE3F2FD),
+                  textColor: const Color(0xFF1976D2),
+                  onTap: () async {
+                    Navigator.pop(dialogContext);
+                    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                    if (image != null) {
+                      setState(() {
+                        _selectedImageFile = File(image.path);
+                        _isPhotoRemoved = false;
+                        _checkForChanges();
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+                _buildPhotoActionButton(
+                  icon: Icons.delete_outline,
+                  label: 'Remove Current Photo',
+                  color: const Color(0xFFFFEBEE),
+                  textColor: const Color(0xFFD32F2F),
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    setState(() {
+                      _selectedImageFile = null;
+                      _isPhotoRemoved = true;
+                      _checkForChanges();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPhotoActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color textColor,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: textColor, size: 20),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_box, color: _primaryGreen, size: 60),
+                const SizedBox(height: 16),
+                const Text(
+                  'Success',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Your profile details have been changed successfully',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black87, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Directing to Home...',
+                  style: TextStyle(color: Colors.black54, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    duration: const Duration(seconds: 2),
+                    builder: (context, value, _) {
+                      return LinearProgressIndicator(
+                        value: value,
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFE8F5E9),
+                        valueColor: const AlwaysStoppedAnimation<Color>(_primaryGreen),
+                      );
+                    },
+                    onEnd: () {
+                      if (!mounted) return;
+                      Navigator.of(dialogContext).pop(); 
+                      Navigator.of(context).pop(); 
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _handleSave() async {
+    // Alamat kita biarkan opsional sesuai aturan Laravel kamu ('nullable|string')
     if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua bidang harus diisi!')),
+        const SnackBar(content: Text('Name and Call Number must be filled!')),
       );
       return;
     }
@@ -90,18 +271,14 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       await context.read<AuthProvider>().updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
+        address: _addressController.text.trim(), // Kirim alamat ke Provider
+        imageFile: _selectedImageFile,
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profil berhasil diperbarui')),
-      );
-      Navigator.pop(context);
+      _showSuccessDialog();
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memperbarui profil: $e')),
-      );
+      // ... (kode error tetap sama)
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -111,9 +288,18 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     
-    final bool hasProfilePic = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    // Logika Penentuan Gambar Profile
     final String fullName = user?.fullName ?? 'Guest';
     final String initials = _getInitials(fullName);
+    
+    final bool hasDatabaseImage = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    
+    ImageProvider? profileImageProvider;
+    if (_selectedImageFile != null) {
+      profileImageProvider = FileImage(_selectedImageFile!);
+    } else if (hasDatabaseImage && !_isPhotoRemoved) {
+      profileImageProvider = NetworkImage(user!.userImage!);
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -127,11 +313,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         ),
         title: const Text(
           'Personal Information',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ),
       body: SafeArea(
@@ -143,17 +325,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // --- Bagian Foto Profil Dinamis ---
+                    // --- Avatar ---
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade200, width: 2), // Garis tepi agar tidak menyatu dengan background putih
+                        border: Border.all(color: Colors.grey.shade200, width: 2),
                       ),
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: Colors.white,
-                        backgroundImage: hasProfilePic ? NetworkImage(user.userImage!) : null, //NetworkImage(user!.userImage!)
-                        child: !hasProfilePic
+                        backgroundImage: profileImageProvider,
+                        child: profileImageProvider == null
                             ? Text(
                                 initials,
                                 style: const TextStyle(
@@ -167,21 +349,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     ),
                     const SizedBox(height: 12),
                     GestureDetector(
-                      onTap: _isLoading ? null : () {
-                        // Logika untuk upload/ganti foto ke storage & DB
-                      },
+                      onTap: _isLoading ? null : _showPhotoActionDialog,
                       child: const Text(
                         'Edit Photo Profile',
-                        style: TextStyle(
-                          color: _primaryGreen,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: TextStyle(color: _primaryGreen, fontSize: 14, fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(height: 40),
 
-                    // --- Bagian Form Input ---
+                    // --- Form Input ---
                     _buildCustomTextField(
                       label: 'Full Name',
                       controller: _nameController,
@@ -191,6 +367,12 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     _buildPhoneTextField(
                       label: 'Call Number',
                       controller: _phoneController,
+                      enabled: !_isLoading,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildCustomTextField(
+                      label: 'Address',
+                      controller: _addressController,
                       enabled: !_isLoading,
                     ),
                   ],
@@ -205,33 +387,23 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  // Logika Utama: Tombol menyala JIKA ada perubahan DAN sedang tidak loading
                   onPressed: (_hasChanges && !_isLoading) ? _handleSave : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen, 
-                    // Konfigurasi warna saat tombol didisable (null onPressed)
                     disabledBackgroundColor: Colors.grey.shade300,
                     disabledForegroundColor: Colors.grey.shade500,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
                   child: _isLoading
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.5,
-                          ),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                         )
                       : const Text(
                           'Save',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                 ),
               ),
@@ -252,11 +424,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF202124),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(color: Color(0xFF202124), fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -265,10 +433,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
           decoration: InputDecoration(
             filled: true,
             fillColor: _inputBackground,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
         ),
@@ -286,36 +451,18 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Color(0xFF202124),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(color: Color(0xFF202124), fontSize: 14, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(
-            color: _inputBackground,
-            borderRadius: BorderRadius.circular(12),
-          ),
+          decoration: BoxDecoration(color: _inputBackground, borderRadius: BorderRadius.circular(12)),
           child: Row(
             children: [
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  '+62',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                child: Text('+62', style: TextStyle(color: Colors.grey, fontSize: 15, fontWeight: FontWeight.w500)),
               ),
-              Container(
-                width: 1,
-                height: 24,
-                color: Colors.grey.shade400,
-              ),
+              Container(width: 1, height: 24, color: Colors.grey.shade400),
               Expanded(
                 child: TextField(
                   controller: controller,

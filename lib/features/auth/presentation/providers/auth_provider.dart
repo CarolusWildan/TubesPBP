@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:tubes_hotel/core/services/local_storage_service.dart';
 import 'package:tubes_hotel/features/auth/data/auth_repository.dart';
@@ -66,6 +66,8 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> updateProfile({
     required String fullName,
     required String phone,
+    required String address,
+    File? imageFile,
   }) async {
     _setLoading(true);
     _clearError();
@@ -76,6 +78,8 @@ class AuthProvider extends ChangeNotifier {
       final updatedUser = await _authRepository.updateProfile(
         fullName: fullName,
         phoneNumber: phone,
+        address: address,
+        imageFile: imageFile,
       );
 
       // 2. Perbarui state lokal
