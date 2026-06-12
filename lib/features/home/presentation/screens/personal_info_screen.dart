@@ -16,7 +16,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   
-  // State untuk menyimpan data asli
+  // State untuk menyimpan data asli pembanding
   late String _initialName;
   late String _initialPhone;
   late String _initialAddress;
@@ -39,15 +39,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
     _initialName = currentUser?.fullName ?? '';
     _initialPhone = currentUser?.noHp ?? '';
-    _initialAddress = currentUser?.alamat ?? ''; // Ambil alamat dari model
+    _initialAddress = currentUser?.alamat ?? ''; 
 
     _nameController = TextEditingController(text: _initialName);
     _phoneController = TextEditingController(text: _initialPhone);
-    _addressController = TextEditingController(text: _initialAddress); // Inisialisasi
+    _addressController = TextEditingController(text: _initialAddress); 
 
     _nameController.addListener(_checkForChanges);
     _phoneController.addListener(_checkForChanges);
-    _addressController.addListener(_checkForChanges); // Dengarkan perubahan alamat
+    _addressController.addListener(_checkForChanges); 
   }
 
   @override
@@ -64,12 +64,11 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   void _checkForChanges() {
     final currentName = _nameController.text.trim();
     final currentPhone = _phoneController.text.trim();
-    final currentAddress = _addressController.text.trim(); // TAMBAHAN
+    final currentAddress = _addressController.text.trim();
     
-    // Periksa apakah teks berubah
     final isTextChanged = currentName != _initialName || 
                           currentPhone != _initialPhone || 
-                          currentAddress != _initialAddress; // TAMBAHAN
+                          currentAddress != _initialAddress;
     
     final isPhotoChanged = _selectedImageFile != null || _isPhotoRemoved;
     final isChanged = isTextChanged || isPhotoChanged;
@@ -257,7 +256,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   }
 
   Future<void> _handleSave() async {
-    // Alamat kita biarkan opsional sesuai aturan Laravel kamu ('nullable|string')
     if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name and Call Number must be filled!')),
@@ -271,14 +269,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       await context.read<AuthProvider>().updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(), // Kirim alamat ke Provider
+        address: _addressController.text.trim(),
         imageFile: _selectedImageFile,
       );
 
       if (!mounted) return;
       _showSuccessDialog();
     } catch (e) {
-      // ... (kode error tetap sama)
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -288,7 +289,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     
-    // Logika Penentuan Gambar Profile
     final String fullName = user?.fullName ?? 'Guest';
     final String initials = _getInitials(fullName);
     
@@ -298,7 +298,10 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     if (_selectedImageFile != null) {
       profileImageProvider = FileImage(_selectedImageFile!);
     } else if (hasDatabaseImage && !_isPhotoRemoved) {
-      profileImageProvider = NetworkImage(user!.userImage!);
+      // 🟢 PEMBARUAN URL DINAMIS STORAGE NGROK
+      // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
+final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+      profileImageProvider = NetworkImage(fullImageUrl);
     }
 
     return Scaffold(
@@ -374,6 +377,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       label: 'Address',
                       controller: _addressController,
                       enabled: !_isLoading,
+                      maxLines: 3, // Fleksibel untuk alamat panjang
                     ),
                   ],
                 ),
@@ -403,7 +407,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                         )
                       : const Text(
                           'Save',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                         ),
                 ),
               ),
@@ -418,6 +422,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     required String label,
     required TextEditingController controller,
     bool enabled = true,
+    int maxLines = 1,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,6 +435,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
         TextField(
           controller: controller,
           enabled: enabled,
+          maxLines: maxLines,
           decoration: InputDecoration(
             filled: true,
             fillColor: _inputBackground,

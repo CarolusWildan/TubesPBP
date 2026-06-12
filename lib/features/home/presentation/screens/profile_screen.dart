@@ -5,6 +5,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 // 1. UBAH IMPORT: Kita ganti GetStartedScreen dengan LoginScreen
 import '../../../auth/presentation/screens/login_screen.dart';
 import 'personal_info_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -13,16 +14,39 @@ class ProfileScreen extends StatelessWidget {
   static const Color _pageBackground = Color(0xFFF8F9FA);
   static const Color _dangerRed = Color(0xFFFF3B30);
 
+  // Fungsi pembantu untuk mengambil inisial nama
+  String _getInitials(String name) {
+    if (name.trim().isEmpty) return '?';
+    List<String> words = name.trim().split(RegExp(r'\s+'));
+    if (words.length == 1) {
+      return words[0].substring(0, 1).toUpperCase();
+    }
+    return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
+    
     final displayName = user?.fullName.trim().isNotEmpty == true
         ? user!.fullName
         : 'User';
     final email = user?.email.trim().isNotEmpty == true
         ? user!.email
         : 'user@gmail.com';
+
+    // --- Logika Penentuan Gambar Profile ---
+    final bool hasDatabaseImage = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    final String initials = _getInitials(displayName);
+
+    ImageProvider? profileImageProvider;
+    if (hasDatabaseImage) {
+      // 🟢 Ganti URL ini dengan URL Ngrok kamu yang sedang aktif + '/storage/'
+      // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
+final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+      profileImageProvider = NetworkImage(fullImageUrl);
+    }
 
     return Container(
       color: _primaryGreen,
@@ -47,11 +71,26 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 45,
-                        backgroundColor: Colors.white24,
-                        backgroundImage: NetworkImage(
-                          'https://i.pravatar.cc/180?img=12',
+                      // --- Tampilan Avatar Dinamis ---
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 45,
+                          backgroundColor: Colors.white, // Background putih jika gambar kosong
+                          backgroundImage: profileImageProvider,
+                          child: profileImageProvider == null
+                              ? Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    color: _primaryGreen,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
                       const SizedBox(width: 20),
@@ -125,7 +164,14 @@ class ProfileScreen extends StatelessWidget {
                     _ProfileMenuTile(
                       icon: Icons.lock_outline,
                       title: 'Privacy Policy',
-                      onTap: () {},
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PrivacyPolicyScreen(),
+                          ),
+                        );
+                      },
                     ),
                     _ProfileMenuTile(
                       icon: Icons.logout,
