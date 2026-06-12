@@ -43,14 +43,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return false;
       }
 
-      final matchesSearch = keyword.isEmpty ||
+      final matchesSearch =
+          keyword.isEmpty ||
           booking.hotelName.toLowerCase().contains(keyword) ||
           booking.location.toLowerCase().contains(keyword);
 
-      final matchesFilter = _selectedFilter == 'All' ||
+      final matchesFilter =
+          _selectedFilter == 'All' ||
           booking.paymentStatus.toLowerCase().contains(
-                _selectedFilter.toLowerCase(),
-              );
+            _selectedFilter.toLowerCase(),
+          );
 
       return matchesSearch && matchesFilter;
     }).toList();
@@ -164,53 +166,76 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: CircularProgressIndicator(color: Color(0xFF0EA554)),
                   )
                 : bookings.isEmpty
-                    ? HistoryEmptyState(
-                        selectedFilter: _selectedFilter,
-                        errorMessage: _errorMessage,
-                        onRetry: _loadHistory,
-                      )
-                    : RefreshIndicator(
-                        color: const Color(0xFF0EA554),
-                        onRefresh: _loadHistory,
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-                          children: [
-                            if (_errorMessage != null) ...[
-                              _HistoryNotice(
-                                message:
-                                    'History terbaru belum bisa diambil. Menampilkan data terakhir.',
-                                onRetry: _loadHistory,
-                              ),
-                              const SizedBox(height: 12),
-                            ],
-                            Text(
-                              DateFormat('MMMM yyyy').format(bookings.first.checkIn),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ...bookings.map(
-                              (booking) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: HistoryBookingCard(
-                                  booking: booking,
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => HistoryDetailScreen(
-                                            booking: booking),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
+                ? HistoryEmptyState(
+                    selectedFilter: _selectedFilter,
+                    errorMessage: _errorMessage,
+                    onRetry: _loadHistory,
+                  )
+                : RefreshIndicator(
+                    color: const Color(0xFF0EA554),
+                    onRefresh: _loadHistory,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+                      children: [
+                        if (_errorMessage != null) ...[
+                          _HistoryNotice(
+                            message:
+                                'History terbaru belum bisa diambil. Menampilkan data terakhir.',
+                            onRetry: _loadHistory,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                        Text(
+                          DateFormat(
+                            'MMMM yyyy',
+                          ).format(bookings.first.checkIn),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        ...bookings.map(
+                          (booking) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: HistoryBookingCard(
+                              booking: booking,
+                              onTap: () async {
+                                final reviewed = await Navigator.push<bool>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        HistoryDetailScreen(booking: booking),
+                                  ),
+                                );
+
+                                if (reviewed == true && mounted) {
+                                  setState(() {
+                                    _bookings = _bookings.map((item) {
+                                      final sameBooking =
+                                          booking.bookingId != null &&
+                                          item.bookingId == booking.bookingId;
+                                      final samePayment =
+                                          booking.idPayment != null &&
+                                          item.idPayment == booking.idPayment;
+
+                                      if (sameBooking || samePayment) {
+                                        return item.copyWith(
+                                          reviewStatus: 'Reviewed',
+                                        );
+                                      }
+
+                                      return item;
+                                    }).toList();
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
@@ -342,10 +367,7 @@ class _HistoryNotice extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
 
-  const _HistoryNotice({
-    required this.message,
-    required this.onRetry,
-  });
+  const _HistoryNotice({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
