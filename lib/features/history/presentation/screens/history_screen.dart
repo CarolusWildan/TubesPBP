@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../shared/network/api_client.dart';
 import '../../../../shared/models/booking_history_model.dart';
-import '../../../../shared/widgets/history_booking_card.dart';
-import '../../../../shared/widgets/history_empty_state.dart';
+import '../widgets/history_booking_card.dart';
+import '../widgets/history_empty_state.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'history_detail_screen.dart';
 

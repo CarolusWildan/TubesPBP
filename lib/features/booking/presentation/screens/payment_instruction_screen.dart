@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../../../shared/widgets/room_info_card.dart';
+import '../../../hotel/presentation/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
-import 'history_screen.dart';
-import 'main_screen.dart';
+import '../../../history/presentation/screens/history_screen.dart';
+import '../../../home/presentation/screens/main_screen.dart';
 
 class PaymentInstructionScreen extends StatelessWidget {
   final String hotelName;

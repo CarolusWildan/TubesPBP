@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:tubes_hotel/features/hotel/presentation/screens/detail_kamar_screen.dart';
 
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../hotel/presentation/screens/pencarian_daftarhotel_screen.dart';
 import '../providers/home_provider.dart';
-import 'detail_kamar_screen.dart';
-import 'pencarian&daftarhotel_screen.dart';
 
 const _kPrimaryColor = Color(0xFF0EA554);
 const _kBackgroundColor = Color(0xFFF8F9FA);

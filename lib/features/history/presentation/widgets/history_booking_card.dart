@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
-import '../models/booking_history_model.dart';
-import '../network/api_client.dart';
+import '../../../../shared/models/booking_history_model.dart';
+import '../../../../shared/network/api_client.dart';
 
 class HistoryBookingCard extends StatelessWidget {
   final BookingHistoryModel booking;

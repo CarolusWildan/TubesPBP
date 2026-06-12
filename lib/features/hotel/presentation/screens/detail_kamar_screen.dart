@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/models/room_model.dart';
 import '../../../../shared/network/api_client.dart';
-import 'booking_date_screen.dart';
+import '../../../booking/presentation/screens/booking_date_screen.dart';
 
 const _kPrimaryColor = Color(0xFF0EA554);
 const _kBackgroundColor = Color(0xFFF6F7F9);
