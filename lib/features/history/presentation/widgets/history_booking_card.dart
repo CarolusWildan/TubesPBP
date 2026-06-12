@@ -38,6 +38,7 @@ class HistoryBookingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isReviewed = booking.isReviewed;
     final statusBackground = _isPending
         ? const Color(0xFFFFF0DF)
         : _isCancel
@@ -135,8 +136,13 @@ class HistoryBookingCard extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 36),
                       child: StatusPill(
                         label: booking.reviewStatus,
-                        backgroundColor: const Color(0xFFFFF0DF),
-                        textColor: const Color(0xFFFF6B3A),
+                        backgroundColor: isReviewed
+                            ? const Color(0xFFE7F8EE)
+                            : const Color(0xFFFFF0DF),
+                        textColor: isReviewed
+                            ? const Color(0xFF0EA554)
+                            : const Color(0xFFFF6B3A),
+                        icon: isReviewed ? Icons.check_circle : null,
                       ),
                     ),
                   ),
@@ -251,12 +257,14 @@ class StatusPill extends StatelessWidget {
   final String label;
   final Color backgroundColor;
   final Color textColor;
+  final IconData? icon;
 
   const StatusPill({
     super.key,
     required this.label,
     required this.backgroundColor,
     required this.textColor,
+    this.icon,
   });
 
   @override
@@ -267,13 +275,22 @@ class StatusPill extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 8,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 8,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (icon != null) ...[
+            const SizedBox(width: 4),
+            Icon(icon, color: textColor, size: 9),
+          ],
+        ],
       ),
     );
   }

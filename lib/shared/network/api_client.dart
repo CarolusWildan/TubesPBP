@@ -110,6 +110,45 @@ class ApiClient {
       throw Exception('Gagal mengirim data. Periksa koneksi internet Anda.');
     }
   }
+
+  Future<dynamic> postMultipartMultiple(
+    String endpoint,
+    Map<String, String> fields, {
+    List<File>? files,
+    String fileField = 'media[]', // Array naming convention di Laravel
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+    
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
+      
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+
+      request.fields.addAll(fields);
+
+      // Looping untuk memasukkan banyak file
+      if (files != null && files.isNotEmpty) {
+        for (var file in files) {
+          request.files.add(
+            await http.MultipartFile.fromPath(fileField, file.path)
+          );
+        }
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _processResponse(response, unwrapData: unwrapData);
+    } catch (e) {
+      throw Exception('Gagal mengupload review: $e');
+    }
+  }
+
   // ---------------------------------------------------------
 
   // 3. PERBAIKAN LOGIKA PARSING RESPONSE

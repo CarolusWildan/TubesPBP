@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'review_screen.dart';
 
 import '../../../../shared/models/booking_history_model.dart';
 import '../../../booking/presentation/screens/payment_instruction_screen.dart';
@@ -243,11 +244,25 @@ class HistoryDetailScreen extends StatelessWidget {
                         ),
                         if (booking.needsReview) ...[
                           const SizedBox(height: 10),
+                          // 🟢 PERUBAHAN NAVIGASI KE REVIEW SCREEN DI SINI 🟢
                           _DetailButton(
                             label: 'Review',
                             backgroundColor: const Color(0xFF0EA554),
                             foregroundColor: Colors.white,
-                            onPressed: () => _showComingSoon(context, 'Review'),
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ReviewScreen(booking: booking),
+                                ),
+                              );
+
+                              // Jika user selesai review (kembali dengan nilai true)
+                              // Otomatis refresh data di halaman History
+                              if (result == true && context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            },
                           ),
                         ],
                       ],
