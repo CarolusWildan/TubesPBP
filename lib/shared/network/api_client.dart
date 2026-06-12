@@ -8,7 +8,7 @@ class ApiClient {
 
   // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
   //static const String baseUrl = '<LINK NGROK>/api';
-  static const String baseUrl = 'https://mortality-emote-creasing.ngrok-free.dev/api';
+  static const String baseUrl = 'https://grumbling-smoking-aside.ngrok-free.dev/api';
 
   final LocalStorageService? _storageService;
 
