@@ -12,7 +12,13 @@ class PersonalInfoScreen extends StatefulWidget {
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
-  bool _isLoading = false; // Untuk menangani state saat menyimpan data ke DB
+  
+  // Variabel untuk menyimpan data asli
+  late String _initialName;
+  late String _initialPhone;
+  
+  bool _isLoading = false;
+  bool _hasChanges = false; // Status untuk memantau apakah ada perubahan ketikan
 
   static const Color _primaryGreen = Color(0xFF0EA554);
   static const Color _inputBackground = Color(0xFFF8F9FA);
@@ -21,26 +27,56 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   void initState() {
     super.initState();
     
-    // Mengambil data user saat ini dari AuthProvider tanpa merender ulang (listen: false / context.read)
-    // Aman digunakan di dalam initState
     final currentUser = context.read<AuthProvider>().user;
 
-    // Inisialisasi controller dengan data asli dari database/provider
-    _nameController = TextEditingController(text: currentUser?.fullName ?? '');
-    
-    // Asumsi properti di model user Anda adalah 'phone' atau 'callNumber'
-    _phoneController = TextEditingController(text: currentUser?.noHp ?? ''); 
+    // Simpan data asli sebagai titik perbandingan
+    _initialName = currentUser?.fullName ?? '';
+    _initialPhone = currentUser?.noHp ?? '';
+
+    _nameController = TextEditingController(text: _initialName);
+    _phoneController = TextEditingController(text: _initialPhone);
+
+    // Pasang listener untuk mengecek perubahan setiap kali user mengetik
+    _nameController.addListener(_checkForChanges);
+    _phoneController.addListener(_checkForChanges);
   }
 
   @override
   void dispose() {
+    _nameController.removeListener(_checkForChanges);
+    _phoneController.removeListener(_checkForChanges);
     _nameController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
+  // Fungsi untuk membandingkan input saat ini dengan data awal
+  void _checkForChanges() {
+    final currentName = _nameController.text.trim();
+    final currentPhone = _phoneController.text.trim();
+    
+    final isChanged = currentName != _initialName || currentPhone != _initialPhone;
+    
+    // Update state hanya jika status perubahannya berbeda untuk menghindari render berlebih
+    if (_hasChanges != isChanged) {
+      setState(() {
+        _hasChanges = isChanged;
+      });
+    }
+  }
+
+  // Fungsi untuk mengekstrak inisial nama (Maksimal 2 huruf)
+  String _getInitials(String name) {
+    if (name.trim().isEmpty) return '?';
+    
+    List<String> words = name.trim().split(RegExp(r'\s+'));
+    if (words.length == 1) {
+      return words[0].substring(0, 1).toUpperCase();
+    }
+    return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
+  }
+
   Future<void> _handleSave() async {
-    // Validasi dasar sebelum menembak ke database
     if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Semua bidang harus diisi!')),
@@ -51,8 +87,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Panggil fungsi update dari AuthProvider Anda
-      // Asumsi di AuthProvider ada fungsi untuk update data ke database/API
       await context.read<AuthProvider>().updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
@@ -62,7 +96,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profil berhasil diperbarui')),
       );
-      Navigator.pop(context); // Kembali ke halaman profil setelah sukses
+      Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,13 +109,11 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Gunakan context.watch jika Anda ingin UI ini responsif terhadap perubahan data user secara real-time
     final user = context.watch<AuthProvider>().user;
     
-    // Fallback URL jika user belum memiliki foto profil di database
-    final profilePicture = user?.userImage != null && user!.userImage!.isNotEmpty
-        ? NetworkImage(user.userImage!)
-        : const NetworkImage('https://i.pravatar.cc/200?img=12') as ImageProvider;
+    final bool hasProfilePic = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    final String fullName = user?.fullName ?? 'Guest';
+    final String initials = _getInitials(fullName);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -112,9 +144,26 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // --- Bagian Foto Profil Dinamis ---
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: profilePicture,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.grey.shade200, width: 2), // Garis tepi agar tidak menyatu dengan background putih
+                      ),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white,
+                        backgroundImage: hasProfilePic ? NetworkImage(user.userImage!) : null, //NetworkImage(user!.userImage!)
+                        child: !hasProfilePic
+                            ? Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: _primaryGreen,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     GestureDetector(
@@ -149,17 +198,20 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
               ),
             ),
             
-            // --- Tombol Simpan dengan State Loading ---
+            // --- Tombol Simpan ---
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSave,
+                  // Logika Utama: Tombol menyala JIKA ada perubahan DAN sedang tidak loading
+                  onPressed: (_hasChanges && !_isLoading) ? _handleSave : null,
                   style: ElevatedButton.styleFrom(
-                    // Jika loading, warna tombol berubah otomatis menjadi abu-abu bawaan disabled
                     backgroundColor: _primaryGreen, 
+                    // Konfigurasi warna saat tombol didisable (null onPressed)
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    disabledForegroundColor: Colors.grey.shade500,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -177,7 +229,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                       : const Text(
                           'Save',
                           style: TextStyle(
-                            color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
