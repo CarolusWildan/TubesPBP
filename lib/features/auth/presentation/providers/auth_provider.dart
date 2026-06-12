@@ -62,7 +62,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Tambahkan di dalam AuthProvider
+  // update profil
   Future<bool> updateProfile({
     required String fullName,
     required String phone,
@@ -94,6 +94,32 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } finally {
       _setLoading(false); // Otomatis memanggil notifyListeners()
+    }
+  }
+
+  // update privacy
+  Future<bool> updatePrivacy({
+    required String email,
+    String? password,
+  }) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final updatedUser = await _authRepository.updatePrivacy(
+        email: email,
+        password: password,
+      );
+
+      _user = updatedUser;
+      await _storageService.saveUser(jsonEncode(_user!.toJson()));
+
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
 

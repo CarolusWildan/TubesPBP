@@ -62,6 +62,30 @@ class AuthRepository {
     }
   }
 
+  Future<UserModel> updatePrivacy({
+    required String email,
+    String? password,
+  }) async {
+    try {
+      final Map<String, dynamic> body = {'email': email};
+      
+      // Hanya kirim password jika pengguna mengetikkan password baru
+      if (password != null && password.trim().isNotEmpty) {
+        body['password'] = password;
+      }
+
+      // Menembak rute baru menggunakan .post (karena tidak ada file gambar)
+      final response = await apiClient.post('/privacy', body, unwrapData: false);
+
+      final userJson = _readMap(response, ['user', 'data.user', 'data']);
+      if (userJson == null) throw Exception('Gagal membaca data dari server.');
+
+      return UserModel.fromJson(userJson);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     try {
       // Memanggil endpoint logout di Laravel untuk menghapus token di sisi server
