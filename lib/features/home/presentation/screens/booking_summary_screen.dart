@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/booking_summary_provider.dart';
 import '../../../../shared/models/hotel_model.dart';
+import '../../../../shared/models/room_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../../../../shared/widgets/addon_section.dart';
 import '../../../../shared/widgets/guest_info.dart';
@@ -15,12 +16,14 @@ import 'payment_instruction_screen.dart';
 
 class BookingSummaryScreen extends StatelessWidget {
   final HotelModel? hotel;
+  final RoomModel? room;
   final DateTime? checkIn;
   final DateTime? checkOut;
 
   const BookingSummaryScreen({
     super.key,
     this.hotel,
+    this.room,
     this.checkIn,
     this.checkOut,
   });
@@ -43,12 +46,16 @@ class BookingSummaryScreen extends StatelessWidget {
     final uri = Uri.tryParse(imagePath);
     if (uri != null && uri.hasScheme) return imagePath;
 
-    final serverUrl = ApiClient.baseUrl.replaceFirst('/api', '');
+    final serverUrl = ApiClient.serverUrl;
     if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
     return '$serverUrl/storage/$imagePath';
   }
 
   String _roomSubtitle(HotelModel? hotel) {
+    if (room?.roomType != null) return room!.roomType!.namaType;
+    if (room?.nomorKamar.trim().isNotEmpty == true) {
+      return 'Room ${room!.nomorKamar}';
+    }
     if (hotel == null) return 'Room details belum tersedia';
     if (hotel.facilityNames.isNotEmpty) {
       return hotel.facilityNames.take(2).join(' - ');
@@ -66,7 +73,9 @@ class BookingSummaryScreen extends StatelessWidget {
         checkOut: checkOut,
         guestUser: context.read<AuthProvider>().user,
         hotelId: hotel?.idHotel,
-      ),
+        roomId: room?.idRoom,
+        initialRoomPrice: room?.pricePerNight ?? hotel?.minPrice,
+      )..loadRoomData(),
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
@@ -90,7 +99,7 @@ class BookingSummaryScreen extends StatelessWidget {
                 hotelName: hotel?.namaHotel ?? 'Hotel belum dipilih',
                 roomType: _roomSubtitle(hotel),
                 rating: hotel?.rating ?? 0,
-                imageUrl: _resolveImageUrl(hotel?.hotelImage),
+                imageUrl: _resolveImageUrl(room?.roomImage ?? hotel?.hotelImage),
               ),
               const SizedBox(height: 12),
               Consumer<BookingSummaryProvider>(

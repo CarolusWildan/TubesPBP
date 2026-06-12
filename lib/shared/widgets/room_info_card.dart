@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'section_card.dart';
+import '../network/api_client.dart';
 
 class RoomInfoCard extends StatelessWidget {
   final String hotelName;
@@ -25,10 +27,11 @@ class RoomInfoCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
               imageUrl,
+              headers: kIsWeb ? null : ApiClient.imageHeaders,
               width: 80,
               height: 80,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (context, error, stackTrace) => Container(
                 width: 80,
                 height: 80,
                 color: Colors.grey.shade200,
@@ -52,10 +55,7 @@ class RoomInfoCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   roomType,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 6),
                 Row(

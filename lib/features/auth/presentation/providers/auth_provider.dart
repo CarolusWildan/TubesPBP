@@ -21,14 +21,14 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({
     required AuthRepository authRepository,
     required LocalStorageService storageService,
-  })  : _authRepository = authRepository,
-        _storageService = storageService;
+  }) : _authRepository = authRepository,
+       _storageService = storageService;
 
   // Getters untuk dibaca oleh UI
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  
+
   // Memeriksa apakah user sudah login (berguna untuk logic UI/Splash Screen)
   bool get isAuthenticated => _user != null;
 
@@ -42,7 +42,7 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final token = await _storageService.getToken();
-      
+
       if (token != null && token.isNotEmpty) {
         final userJson = await _storageService.getUser();
         if (userJson != null && userJson.isNotEmpty) {
@@ -62,30 +62,73 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Tambahkan di dalam AuthProvider
+  Future<bool> updateProfile({
+    required String fullName,
+    required String phone,
+  }) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      // 1. Panggil API Laravel melalui Repository
+      // Pastikan _authRepository.updateProfile mengembalikan object UserModel terbaru
+      final updatedUser = await _authRepository.updateProfile(
+        fullName: fullName,
+        phoneNumber: phone,
+      );
+
+      // 2. Perbarui state lokal
+      _user = updatedUser;
+
+      // 3. Timpa data lama di Local Storage
+      await _storageService.saveUser(jsonEncode(_user!.toJson()));
+
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false); // Otomatis memanggil notifyListeners()
+    }
+  }
+
   // Fungsi Login
   Future<bool> login(String email, String password) async {
     _setLoading(true);
     _clearError();
 
+    // --- 1. CLIENT-SIDE VALIDATION ---
+    if (email.trim().isEmpty || password.trim().isEmpty) {
+      _errorMessage = "Email and password cannot be empty.";
+      _setLoading(false);
+      return false;
+    }
+
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(email)) {
+      _errorMessage = "Invalid email format.";
+      _setLoading(false);
+      return false;
+    }
+
+    // --- 2. PANGGIL API LARAVEL ---
     try {
-      // 1. Panggil API melalui Repository
       final result = await _authRepository.login(email, password);
-      
-      // 2. Simpan token ke local storage
+
       final String token = result['token'];
       await _storageService.saveToken(token);
 
-      // 3. Simpan data user ke memory state Provider
       _user = result['user'] as UserModel;
       await _storageService.saveUser(jsonEncode(_user!.toJson()));
-      
+
       _setLoading(false);
-      return true; // Beri tahu UI bahwa login sukses
+      return true;
     } catch (e) {
       _setLoading(false);
-      _errorMessage = e.toString().replaceAll('Exception: ', ''); // Bersihkan pesan error
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       notifyListeners();
-      return false; // Beri tahu UI bahwa login gagal
+      return false;
     }
   }
 
@@ -123,11 +166,21 @@ class AuthProvider extends ChangeNotifier {
 
   // Fungsi Logout
   Future<void> logout() async {
-    // Idealnya panggil _authRepository.logout() juga jika Laravel butuh mencabut token (revoke)
-    await _storageService.deleteToken();
-    await _storageService.deleteUser();
-    _user = null;
-    notifyListeners();
+    _setLoading(true);
+
+    try {
+      // 1. Beritahu server untuk mencabut token
+      await _authRepository.logout();
+    } finally {
+      // 2. Blok 'finally' menjamin bahwa APAPUN yang terjadi pada server (sukses/gagal/timeout),
+      // data lokal user di HP akan tetap dihapus. Ini krusial untuk UX.
+      await _storageService.deleteToken();
+      await _storageService.deleteUser();
+      _user = null;
+      _setLoading(
+        false,
+      ); // notifyListeners() sudah dipanggil di dalam _setLoading
+    }
   }
 
   // Helpers internal

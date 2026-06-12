@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+// 1. KITA UBAH IMPORT: Dari HomeScreen menjadi MainScreen
+import 'package:tubes_hotel/features/home/presentation/screens/main_screen.dart';
 import '../providers/auth_provider.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/primary_button.dart';
-import 'register_screen.dart'; // Nanti arahkan navigasi ke sini
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,8 +40,6 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 40),
               // --- AREA LOGO ---
-              // Asumsi Anda sudah menyimpan logo dari figma ke folder assets/images/logo.png
-              // Jika belum, gunakan Icon sementara seperti ini:
               Container(
                 height: 200,
                 width: 150,
@@ -48,6 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Image.asset(
                     'assets/images/logo.png',
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.hotel,
+                      size: 80,
+                      color: Color(0xFF0EA554),
+                    ),
                   ),
                 ),
               ),
@@ -98,13 +103,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 text: 'Login',
                 isLoading: authProvider.isLoading,
                 onPressed: () async {
-                  // Logika pemanggilan fungsi di Provider
                   final success = await authProvider.login(
                     _emailController.text,
                     _passwordController.text,
                   );
+
                   if (success && mounted) {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    // 2. KITA PERBAIKI RUTE NAVIGASI:
+                    // Kita arahkan ke MainScreen() agar BottomNavigationBar dimuat dengan sempurna.
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MainScreen(), 
+                      ),
+                      (route) => false, // Buang halaman Get Started dan Login dari tumpukan memori
+                    );
                   }
                 },
               ),
@@ -121,7 +134,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 icon: Image.network(
                   'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
                   height: 20,
-                  // Jika URL gagal, gunakan Icon biasa
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.g_mobiledata,
                     color: Colors.red,
