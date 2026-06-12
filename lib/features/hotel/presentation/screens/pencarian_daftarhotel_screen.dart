@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
-import '../providers/home_provider.dart';
+import '../../../home/presentation/providers/home_provider.dart';
 import 'detail_kamar_screen.dart';
 
 const _kPrimaryColor = Color(0xFF0EA554);

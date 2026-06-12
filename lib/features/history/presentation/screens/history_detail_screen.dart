@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../shared/models/booking_history_model.dart';
-import '../../../../shared/widgets/history_booking_card.dart';
-import 'payment_instruction_screen.dart';
+import '../../../booking/presentation/screens/payment_instruction_screen.dart';
+import '../widgets/history_booking_card.dart';
+
 
 class HistoryDetailScreen extends StatelessWidget {
   final BookingHistoryModel booking;
