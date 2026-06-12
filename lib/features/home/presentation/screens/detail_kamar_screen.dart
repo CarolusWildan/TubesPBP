@@ -531,7 +531,7 @@ class _HotelSummary extends StatelessWidget {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: facilityList.length,
-                    separatorBuilder: (_, __) => const Divider(height: 18),
+                    separatorBuilder: (_, _) => const Divider(height: 18),
                     itemBuilder: (context, index) {
                       return _FacilityItem(name: facilityList[index]);
                     },
