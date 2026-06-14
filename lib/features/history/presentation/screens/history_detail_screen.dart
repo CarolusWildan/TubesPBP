@@ -5,7 +5,7 @@ import 'review_screen.dart';
 import '../../../../shared/models/booking_history_model.dart';
 import '../../../booking/presentation/screens/payment_instruction_screen.dart';
 import '../widgets/history_booking_card.dart';
-
+import 'ticket_screen.dart';
 
 class HistoryDetailScreen extends StatelessWidget {
   final BookingHistoryModel booking;
@@ -59,7 +59,8 @@ class HistoryDetailScreen extends StatelessWidget {
           jumlahMalam: nights <= 0 ? 1 : nights,
           paymentMethodId: _paymentMethodId(),
           paymentMethodName: booking.paymentMethod,
-          paymentId: booking.idPayment, // 🔴 Menggunakan idPayment berformat PAY00X dari DB
+          paymentId: booking
+              .idPayment, // 🔴 Menggunakan idPayment berformat PAY00X dari DB
           totalPayment: booking.totalPayment,
         ),
       ),
@@ -91,7 +92,9 @@ class HistoryDetailScreen extends StatelessWidget {
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.22), // Standarisasi opacity lawas/baru
+                    backgroundColor: Colors.white.withOpacity(
+                      0.22,
+                    ), // Standarisasi opacity lawas/baru
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -152,13 +155,15 @@ class HistoryDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 22),
-                      
+
                       // 🔴 BAGIAN UTAMA CARD: Menampilkan id_payment berformat PAY002
                       _DetailRow(
-                        label: 'ID Order', 
-                        value: booking.idPayment ?? "-", // Menampilkan PAY00X dari database Anda
+                        label: 'ID Order',
+                        value:
+                            booking.idPayment ??
+                            "-", // Menampilkan PAY00X dari database Anda
                       ),
-                      
+
                       _DetailRow(
                         label: 'Paid',
                         value: _formatDate(booking.checkIn),
@@ -239,8 +244,16 @@ class HistoryDetailScreen extends StatelessWidget {
                           label: 'Invoice PDF',
                           backgroundColor: const Color(0xFFCDEFE0),
                           foregroundColor: const Color(0xFF0EA554),
-                          onPressed: () =>
-                              _showComingSoon(context, 'Invoice PDF'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => TicketScreen(
+                                  bookingId: booking.bookingId ?? '',
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         if (booking.needsReview) ...[
                           const SizedBox(height: 10),
@@ -253,7 +266,8 @@ class HistoryDetailScreen extends StatelessWidget {
                               final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ReviewScreen(booking: booking),
+                                  builder: (_) =>
+                                      ReviewScreen(booking: booking),
                                 ),
                               );
 
