@@ -41,19 +41,23 @@ class AuthRepository {
     required String phoneNumber,
     required String address,
     File? imageFile,
+    bool removeImage = false,
   }) async {
     try {
-      final fields = {
+      final fields = <String, String>{
         'nama': fullName,
         'no_hp': phoneNumber,
         'alamat': address,
-        'remove_image': 'true', // Kirim flag ini ke Laravel
       };
+
+      if (removeImage) {
+        fields['remove_image'] = 'true';
+      }
 
       final response = await apiClient.postMultipart(
         '/profile',
         fields,
-        file: null, // Jangan kirim file
+        file: removeImage ? null : imageFile,
         fileField: 'user_image',
         unwrapData: false,
       );

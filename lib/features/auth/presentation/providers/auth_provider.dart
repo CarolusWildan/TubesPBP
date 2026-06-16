@@ -60,6 +60,7 @@ class AuthProvider extends ChangeNotifier {
     required String phone,
     required String address,
     File? imageFile,
+    bool removeImage = false,
   }) async {
     _setLoading(true);
     _clearError();
@@ -70,6 +71,7 @@ class AuthProvider extends ChangeNotifier {
         phoneNumber: phone,
         address: address,
         imageFile: imageFile,
+        removeImage: removeImage,
       );
 
       _user = updatedUser;
