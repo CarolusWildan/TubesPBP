@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:tubes_hotel/features/hotel/presentation/screens/detail_kamar_screen.dart';
 
+import '../../../../core/services/speech_service.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../hotel/presentation/screens/pencarian_daftarhotel_screen.dart';
 import '../providers/home_provider.dart';
-import 'detail_kamar_screen.dart';
-import 'pencarian&daftarhotel_screen.dart';
 
 const _kPrimaryColor = Color(0xFF0EA554);
 const _kBackgroundColor = Color(0xFFF8F9FA);
@@ -22,12 +23,70 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final SpeechService _speechService = SpeechService();
+
+  bool _isListening = false;
+  bool _navigatedFromSpeech = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeProvider>().loadHomeData();
     });
+  }
+
+  @override
+  void dispose() {
+    _speechService.cancel();
+    super.dispose();
+  }
+
+  void _openSearchScreen({String? query}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PencarianDaftarHotelScreen(initialQuery: query),
+      ),
+    );
+  }
+
+  Future<void> _startVoiceSearch() async {
+    if (_isListening) {
+      await _speechService.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    _navigatedFromSpeech = false;
+
+    setState(() => _isListening = true);
+
+    await _speechService.startSearchListening(
+      onError: (message) {
+        if (!mounted) return;
+        setState(() => _isListening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      },
+      onResult: (words, isFinal) {
+        if (!mounted || words.isEmpty) return;
+
+        context.read<HomeProvider>().updateSearchQuery(words);
+
+        if (isFinal && !_navigatedFromSpeech) {
+          _navigatedFromSpeech = true;
+          setState(() => _isListening = false);
+          _openSearchScreen(query: words);
+        }
+      },
+    );
+
+    if (!mounted) return;
+    if (!_speechService.isListening) {
+      setState(() => _isListening = false);
+    }
   }
 
   String? _resolveImageUrl(String? value) {
@@ -193,13 +252,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Expanded(
                                     child: GestureDetector(
                                       onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const PencarianDaftarHotelScreen(),
-                                          ),
-                                        );
+                                        _openSearchScreen();
                                       },
                                       child: const Text(
                                         'Search hotels or destinations...',
@@ -216,13 +269,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                     width: 32,
                                     height: 32,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF2F2F2),
+                                      color: _isListening
+                                          ? _kPrimaryColor
+                                          : const Color(0xFFF2F2F2),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(
-                                      Icons.close,
-                                      size: 18,
-                                      color: Color(0xFF9E9E9E),
+                                    child: IconButton(
+                                      tooltip: _isListening
+                                          ? 'Stop voice search'
+                                          : 'Voice search',
+                                      padding: EdgeInsets.zero,
+                                      icon: Icon(
+                                        _isListening
+                                            ? Icons.mic
+                                            : Icons.mic_none,
+                                        size: 18,
+                                        color: _isListening
+                                            ? Colors.white
+                                            : const Color(0xFF9E9E9E),
+                                      ),
+                                      onPressed: _startVoiceSearch,
                                     ),
                                   ),
                                 ],

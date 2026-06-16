@@ -1,8 +1,33 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- ======================================================= -->
+    <!-- TAMBAHKAN PERMISSIONS DI SINI (Di atas tag application) -->
+    <!-- ======================================================= -->
+    
+    <!-- Izin untuk mengakses Internet -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
+    <!-- Izin untuk GPS (Lokasi) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Izin untuk Galeri / Akses Penyimpanan -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Wajib ditambahkan untuk Android 13 (API 33) ke atas jika mengambil gambar dari galeri -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+    <!-- Izin untuk Kamera -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Izin untuk Mikrofon -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
-        android:label="tubes_hotel"
+        android:label="Pitulungan.inn"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <activity
             android:name=".MainActivity"
             android:exported="true"

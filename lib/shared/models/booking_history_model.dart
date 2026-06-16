@@ -1,8 +1,9 @@
 import '../network/api_client.dart';
 
 class BookingHistoryModel {
-  final String? idPayment; 
+  final String? idPayment;
   final String? bookingId;
+  final String? hotelId;
   final String hotelName;
   final String location;
   final String imageUrl;
@@ -15,8 +16,9 @@ class BookingHistoryModel {
   final String? userId;
 
   const BookingHistoryModel({
-    required this.idPayment, 
+    required this.idPayment,
     this.bookingId,
+    this.hotelId,
     required this.hotelName,
     required this.location,
     required this.imageUrl,
@@ -29,11 +31,47 @@ class BookingHistoryModel {
     this.userId,
   });
 
+  BookingHistoryModel copyWith({
+    String? idPayment,
+    String? bookingId,
+    String? hotelId,
+    String? hotelName,
+    String? location,
+    String? imageUrl,
+    DateTime? checkIn,
+    DateTime? checkOut,
+    double? totalPayment,
+    String? paymentStatus,
+    String? paymentMethod,
+    String? reviewStatus,
+    String? userId,
+  }) {
+    return BookingHistoryModel(
+      idPayment: idPayment ?? this.idPayment,
+      bookingId: bookingId ?? this.bookingId,
+      hotelId: hotelId ?? this.hotelId,
+      hotelName: hotelName ?? this.hotelName,
+      location: location ?? this.location,
+      imageUrl: imageUrl ?? this.imageUrl,
+      checkIn: checkIn ?? this.checkIn,
+      checkOut: checkOut ?? this.checkOut,
+      totalPayment: totalPayment ?? this.totalPayment,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      reviewStatus: reviewStatus ?? this.reviewStatus,
+      userId: userId ?? this.userId,
+    );
+  }
+
   factory BookingHistoryModel.fromJson(Map<String, dynamic> json) {
     // 🟢 PERBAIKAN 1: Ekstrak booking_details sebagai List dan ambil element pertama
-    final bookingDetails = _asList(json['booking_details'] ?? json['bookingDetails']);
-    final firstDetail = bookingDetails.isNotEmpty ? _asMap(bookingDetails.first) : null;
-    
+    final bookingDetails = _asList(
+      json['booking_details'] ?? json['bookingDetails'],
+    );
+    final firstDetail = bookingDetails.isNotEmpty
+        ? _asMap(bookingDetails.first)
+        : null;
+
     final room = _asMap(firstDetail?['room']);
     final hotel =
         _asMap(room?['hotel']) ??
@@ -42,9 +80,11 @@ class BookingHistoryModel {
 
     // 🟢 PERBAIKAN 2: Karena di Laravel 'payments' adalah array/list, ambil data pertamanya
     final paymentsList = _asList(json['payments'] ?? json['payment']);
-    final payment = paymentsList.isNotEmpty 
-        ? _asMap(paymentsList.first) 
-        : _asMap(json['payments'] ?? json['payment']); // fallback jika berupa Map mentah
+    final payment = paymentsList.isNotEmpty
+        ? _asMap(paymentsList.first)
+        : _asMap(
+            json['payments'] ?? json['payment'],
+          ); // fallback jika berupa Map mentah
 
     final reviews = _asList(json['reviews']);
 
@@ -63,6 +103,13 @@ class BookingHistoryModel {
         json['id'],
       ]),
       bookingId: _firstNullableText([json['id_booking'], json['id']]),
+      hotelId:
+          _firstNullableText([
+            hotel?['id_hotel'],
+            hotel?['id'],
+            json['id_hotel'],
+          ]) ??
+          'HTL001',
       hotelName: _firstText([
         hotel?['nama_hotel'],
         hotel?['hotel_name'],
@@ -110,12 +157,16 @@ class BookingHistoryModel {
     if (booking == null) return BookingHistoryModel.fromJson(json);
 
     // Jika datang dari endpoint payment, bungkus objek payment ke dalam array agar seragam
-    return BookingHistoryModel.fromJson({...booking, 'payments': [json]});
+    return BookingHistoryModel.fromJson({
+      ...booking,
+      'payments': [json],
+    });
   }
 
   bool get isPending => paymentStatus.toLowerCase().contains('pending');
   bool get isSuccess => paymentStatus.toLowerCase().contains('success');
-  bool get needsReview => isSuccess && reviewStatus != 'Reviewed';
+  bool get isReviewed => reviewStatus.trim().toLowerCase() == 'reviewed';
+  bool get needsReview => isSuccess && !isReviewed;
 
   bool belongsToUser(String? currentUserId) {
     if (currentUserId == null || currentUserId.isEmpty || userId == null) {
@@ -198,7 +249,7 @@ class BookingHistoryModel {
 
     final serverUrl = ApiClient.serverUrl;
     if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
-    
+
     // Hilangkan prefix storage/ jika di database sudah tersimpan dengan kata 'storage/'
     if (imagePath.startsWith('storage/')) return '$serverUrl/$imagePath';
     return '$serverUrl/storage/$imagePath';

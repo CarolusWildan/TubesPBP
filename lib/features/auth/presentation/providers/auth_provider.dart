@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:tubes_hotel/core/services/local_storage_service.dart';
 import 'package:tubes_hotel/features/auth/data/auth_repository.dart';
 import '../../../../shared/models/user_model.dart';
+import 'package:google_sign_in/google_sign_in.dart' as g_auth;
 
 // --- 3. AUTH PROVIDER (ViewModel) ---
-// Lokasi: lib/features/auth/presentation/providers/auth_provider.dart
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository;
   final LocalStorageService _storageService;
@@ -15,30 +15,23 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  // --- 1. TAMBAHAN: Variabel status awal (default true) ---
   bool _isCheckingAuth = true;
 
   AuthProvider({
     required AuthRepository authRepository,
     required LocalStorageService storageService,
   }) : _authRepository = authRepository,
-       _storageService = storageService;
+        _storageService = storageService;
 
-  // Getters untuk dibaca oleh UI
   UserModel? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-
-  // Memeriksa apakah user sudah login (berguna untuk logic UI/Splash Screen)
   bool get isAuthenticated => _user != null;
-
-  // --- 2. TAMBAHAN: Getter untuk status awal ---
   bool get isCheckingAuth => _isCheckingAuth;
 
-  // --- 3. TAMBAHAN: Fungsi Cek Sesi (Dipanggil di main.dart) ---
   Future<void> checkLoginStatus() async {
     _isCheckingAuth = true;
-    notifyListeners(); // UI menampilkan Loading (AuthWrapper)
+    notifyListeners(); 
 
     try {
       final token = await _storageService.getToken();
@@ -58,34 +51,30 @@ class AuthProvider extends ChangeNotifier {
       _user = null;
     } finally {
       _isCheckingAuth = false;
-      notifyListeners(); // Selesai loading, UI lompat ke Home/Login
+      notifyListeners(); 
     }
   }
 
-  // Tambahkan di dalam AuthProvider
   Future<bool> updateProfile({
     required String fullName,
     required String phone,
     required String address,
     File? imageFile,
+    bool removeImage = false,
   }) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // 1. Panggil API Laravel melalui Repository
-      // Pastikan _authRepository.updateProfile mengembalikan object UserModel terbaru
       final updatedUser = await _authRepository.updateProfile(
         fullName: fullName,
         phoneNumber: phone,
         address: address,
         imageFile: imageFile,
+        removeImage: removeImage,
       );
 
-      // 2. Perbarui state lokal
       _user = updatedUser;
-
-      // 3. Timpa data lama di Local Storage
       await _storageService.saveUser(jsonEncode(_user!.toJson()));
 
       return true;
@@ -93,16 +82,86 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false); // Otomatis memanggil notifyListeners()
+      _setLoading(false); 
     }
   }
 
-  // Fungsi Login
+  // PERBAIKAN: Logika penyimpanan token ditangani di sini
+  Future<bool> loginWithGoogle() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final g_auth.GoogleSignIn googleSignIn = g_auth.GoogleSignIn(
+        serverClientId: '925221113448-vo8as72u6jcf256c0rgq43ah8v0i92il.apps.googleusercontent.com',
+        scopes: ['email', 'profile'],
+      );
+
+      await googleSignIn.signOut();
+
+      final g_auth.GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        _setLoading(false);
+        return false; 
+      }
+
+      final g_auth.GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Gagal mendapatkan ID Token dari Google.');
+      }
+
+      // Repository sekarang mengembalikan Map (Token & User)
+      final result = await _authRepository.loginWithGoogle(idToken);
+
+      // Simpan Token
+      final String token = result['token'];
+      await _storageService.saveToken(token);
+
+      // Simpan User
+      _user = result['user'] as UserModel;
+      await _storageService.saveUser(jsonEncode(_user!.toJson()));
+
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> updatePrivacy({
+    required String email,
+    String? password,
+  }) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final updatedUser = await _authRepository.updatePrivacy(
+        email: email,
+        password: password,
+      );
+
+      _user = updatedUser;
+      await _storageService.saveUser(jsonEncode(_user!.toJson()));
+
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     _setLoading(true);
     _clearError();
 
-    // --- 1. CLIENT-SIDE VALIDATION ---
     if (email.trim().isEmpty || password.trim().isEmpty) {
       _errorMessage = "Email and password cannot be empty.";
       _setLoading(false);
@@ -116,7 +175,6 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
 
-    // --- 2. PANGGIL API LARAVEL ---
     try {
       final result = await _authRepository.login(email, password);
 
@@ -136,7 +194,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Fungsi Register
   Future<bool> register({
     required String fullName,
     required String email,
@@ -168,26 +225,19 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Fungsi Logout
   Future<void> logout() async {
     _setLoading(true);
 
     try {
-      // 1. Beritahu server untuk mencabut token
       await _authRepository.logout();
     } finally {
-      // 2. Blok 'finally' menjamin bahwa APAPUN yang terjadi pada server (sukses/gagal/timeout),
-      // data lokal user di HP akan tetap dihapus. Ini krusial untuk UX.
       await _storageService.deleteToken();
       await _storageService.deleteUser();
       _user = null;
-      _setLoading(
-        false,
-      ); // notifyListeners() sudah dipanggil di dalam _setLoading
+      _setLoading(false); 
     }
   }
 
-  // Helpers internal
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
@@ -195,6 +245,5 @@ class AuthProvider extends ChangeNotifier {
 
   void _clearError() {
     _errorMessage = null;
-    // Tidak panggil notifyListeners() karena _setLoading sudah memanggilnya
   }
 }

@@ -24,6 +24,10 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aplikasi membutuhkan mikrofon untuk mencari hotel menggunakan suara.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Aplikasi membutuhkan speech recognition untuk mengubah suara menjadi kata pencarian hotel.</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>

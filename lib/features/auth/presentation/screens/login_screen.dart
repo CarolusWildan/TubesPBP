@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-// 1. KITA UBAH IMPORT: Dari HomeScreen menjadi MainScreen
 import 'package:tubes_hotel/features/home/presentation/screens/main_screen.dart';
 import '../providers/auth_provider.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
@@ -89,16 +88,17 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Pesan Error jika gagal login
+              // Pesan Error jika gagal login (Berlaku untuk Manual & Google Login)
               if (authProvider.errorMessage != null) ...[
                 Text(
                   authProvider.errorMessage!,
                   style: const TextStyle(color: Colors.red, fontSize: 12),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
               ],
 
-              // --- TOMBOL LOGIN ---
+              // --- TOMBOL LOGIN MANUAL ---
               PrimaryButton(
                 text: 'Login',
                 isLoading: authProvider.isLoading,
@@ -109,14 +109,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
 
                   if (success && mounted) {
-                    // 2. KITA PERBAIKI RUTE NAVIGASI:
-                    // Kita arahkan ke MainScreen() agar BottomNavigationBar dimuat dengan sempurna.
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const MainScreen(), 
                       ),
-                      (route) => false, // Buang halaman Get Started dan Login dari tumpukan memori
+                      (route) => false, 
                     );
                   }
                 },
@@ -129,8 +127,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(color: Colors.black54, fontSize: 12),
               ),
               const SizedBox(height: 16),
+              
               OutlinedButton.icon(
-                onPressed: () {},
+                // Logika disable button jika provider sedang loading
+                onPressed: authProvider.isLoading
+                    ? null
+                    : () async {
+                        // 1. Panggil fungsi Google Login dari Provider
+                        final success = await authProvider.loginWithGoogle();
+
+                        // 2. Jika sukses dan UI masih aktif, navigasikan ke MainScreen
+                        if (success && mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MainScreen(),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      },
                 icon: Image.network(
                   'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
                   height: 20,

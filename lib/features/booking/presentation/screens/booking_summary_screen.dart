@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../providers/booking_summary_provider.dart';
+import '../../../home/presentation/providers/booking_summary_provider.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/models/room_model.dart';
 import '../../../../shared/network/api_client.dart';
@@ -10,7 +10,7 @@ import '../../../../shared/widgets/addon_section.dart';
 import '../../../../shared/widgets/guest_info.dart';
 import '../../../../shared/widgets/payment_detail_section.dart';
 import '../../../../shared/widgets/payment_method_section.dart';
-import '../../../../shared/widgets/room_info_card.dart';
+import '../../../hotel/presentation/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
 import 'payment_instruction_screen.dart';
 
