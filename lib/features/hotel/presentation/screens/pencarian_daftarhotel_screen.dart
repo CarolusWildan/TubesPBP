@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/services/speech_service.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
 import '../../../home/presentation/providers/home_provider.dart';
@@ -13,7 +14,9 @@ const _kCardBackground = Colors.white;
 const _kShadowColor = Color(0x1F000000);
 
 class PencarianDaftarHotelScreen extends StatefulWidget {
-  const PencarianDaftarHotelScreen({super.key});
+  const PencarianDaftarHotelScreen({super.key, this.initialQuery});
+
+  final String? initialQuery;
 
   @override
   State<PencarianDaftarHotelScreen> createState() =>
@@ -23,16 +26,27 @@ class PencarianDaftarHotelScreen extends StatefulWidget {
 class _PencarianDaftarHotelScreenState
     extends State<PencarianDaftarHotelScreen> {
   late final TextEditingController _searchController;
+  final SpeechService _speechService = SpeechService();
+
+  bool _isListening = false;
 
   @override
   void initState() {
     super.initState();
     final homeProvider = context.read<HomeProvider>();
-    _searchController = TextEditingController(text: homeProvider.searchQuery);
+    final initialQuery = widget.initialQuery?.trim();
+    _searchController = TextEditingController(
+      text: initialQuery?.isNotEmpty == true
+          ? initialQuery
+          : homeProvider.searchQuery,
+    );
     _searchController.addListener(() {
       setState(() {});
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (initialQuery?.isNotEmpty == true) {
+        homeProvider.updateSearchQuery(initialQuery!);
+      }
       if (homeProvider.hotels.isEmpty) {
         homeProvider.loadHomeData();
       }
@@ -41,8 +55,47 @@ class _PencarianDaftarHotelScreenState
 
   @override
   void dispose() {
+    _speechService.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _startVoiceSearch() async {
+    if (_isListening) {
+      await _speechService.stop();
+      if (mounted) setState(() => _isListening = false);
+      return;
+    }
+
+    setState(() => _isListening = true);
+
+    await _speechService.startSearchListening(
+      onError: (message) {
+        if (!mounted) return;
+        setState(() => _isListening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      },
+      onResult: (words, isFinal) {
+        if (!mounted || words.isEmpty) return;
+
+        _searchController.text = words;
+        _searchController.selection = TextSelection.collapsed(
+          offset: _searchController.text.length,
+        );
+
+        if (isFinal) {
+          setState(() => _isListening = false);
+          context.read<HomeProvider>().updateSearchQuery(words);
+        }
+      },
+    );
+
+    if (!mounted) return;
+    if (!_speechService.isListening) {
+      setState(() => _isListening = false);
+    }
   }
 
   String? _resolveImageUrl(String? value) {
@@ -191,6 +244,18 @@ class _PencarianDaftarHotelScreenState
                                     homeProvider.clearSearch();
                                   },
                                 ),
+                              IconButton(
+                                tooltip: _isListening
+                                    ? 'Stop voice search'
+                                    : 'Voice search',
+                                icon: Icon(
+                                  _isListening ? Icons.mic : Icons.mic_none,
+                                  color: _isListening
+                                      ? _kPrimaryColor
+                                      : Colors.black45,
+                                ),
+                                onPressed: _startVoiceSearch,
+                              ),
                             ],
                           ),
                         ),
