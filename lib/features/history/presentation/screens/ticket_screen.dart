@@ -5,7 +5,7 @@ import '../widgets/qr_ticket_widget.dart'; // Sesuaikan path widget QR Anda
 class TicketScreen extends StatelessWidget {
   final String bookingId;
 
-  const TicketScreen({super.key, required this.bookingId});
+  const TicketScreen({Key? key, required this.bookingId}) : super(key: key);
 
   // Fungsi dinamis: parameter 'type' bisa berisi 'preview-pdf' atau 'download-pdf'
   Future<void> _handlePdfAction(String type) async {

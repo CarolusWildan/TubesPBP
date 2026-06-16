@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'section_card.dart';
-import '../network/api_client.dart';
+import '../../../../shared/widgets/section_card.dart';
+import '../../../../shared/network/api_client.dart';
 
 class RoomInfoCard extends StatelessWidget {
   final String hotelName;

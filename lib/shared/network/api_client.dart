@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io'; // 🟢 WAJIB DITAMBAHKAN UNTUK MENGENALI DATA 'File'
 import 'package:http/http.dart' as http;
 import '../../core/services/local_storage_service.dart';
 
@@ -7,9 +8,8 @@ class ApiClient {
     : _storageService = storageService;
 
   // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
-  //static const String baseUrl = '<LINK NGROK>/api';
   static const String baseUrl =
-      'https://unwatched-catlike-shrapnel.ngrok-free.dev/api';
+      'https://mortality-emote-creasing.ngrok-free.dev/api';
   static String get serverUrl => baseUrl.replaceFirst('/api', '');
   static const Map<String, String> imageHeaders = {
     'ngrok-skip-browser-warning': 'true',
@@ -25,8 +25,7 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'ngrok-skip-browser-warning':
-          'true', // 2. WAJIB UNTUK BYPASS HALAMAN NGROK
+      'ngrok-skip-browser-warning': 'true', 
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -70,6 +69,88 @@ class ApiClient {
     return _processResponse(response, unwrapData: unwrapData);
   }
 
+  // --- 🟢 FUNGSI BARU UNTUK UPLOAD GAMBAR (MULTIPART) 🟢 ---
+  Future<dynamic> postMultipart(
+    String endpoint,
+    Map<String, String> fields, {
+    File? file,
+    String fileField = 'user_image',
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+    
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
+      
+      // Header untuk autentikasi (Tanpa Content-Type karena diatur otomatis oleh MultipartRequest)
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+
+      // 1. Masukkan data teks (Nama, No HP, Alamat)
+      request.fields.addAll(fields);
+
+      // 2. Masukkan data file (Gambar Profil) jika ada
+      if (file != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(fileField, file.path)
+        );
+      }
+
+      // 3. Kirim ke Laravel
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // 4. Proses balasan menggunakan logika yang sama
+      return _processResponse(response, unwrapData: unwrapData);
+      
+    } catch (e) {
+      throw Exception('Gagal mengirim data. Periksa koneksi internet Anda.');
+    }
+  }
+
+  Future<dynamic> postMultipartMultiple(
+    String endpoint,
+    Map<String, String> fields, {
+    List<File>? files,
+    String fileField = 'media[]', // Array naming convention di Laravel
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+    
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
+      
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+
+      request.fields.addAll(fields);
+
+      // Looping untuk memasukkan banyak file
+      if (files != null && files.isNotEmpty) {
+        for (var file in files) {
+          request.files.add(
+            await http.MultipartFile.fromPath(fileField, file.path)
+          );
+        }
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _processResponse(response, unwrapData: unwrapData);
+    } catch (e) {
+      throw Exception('Gagal mengupload review: $e');
+    }
+  }
+
+  // ---------------------------------------------------------
+
   // 3. PERBAIKAN LOGIKA PARSING RESPONSE
   dynamic _processResponse(http.Response response, {required bool unwrapData}) {
     if (response.body.isEmpty) return null;
@@ -79,7 +160,6 @@ class ApiClient {
     final isJson = contentType.contains('application/json');
 
     if (!isJson) {
-      // Jika bukan JSON (misal Ngrok Error HTML atau Laravel Fatal Error HTML)
       throw Exception(
         'Server merespons dengan format yang tidak valid (bukan JSON). Status Code: ${response.statusCode}',
       );

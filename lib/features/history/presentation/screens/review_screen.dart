@@ -199,7 +199,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 48, 20, 84),
             decoration: const BoxDecoration(
-              color: Color(0xFF0EA554),
+              color: const Color(0xFF0EA554),
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(26)),
             ),
             child: Row(
@@ -249,7 +249,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         child: Image.network(
                           widget.booking.imageUrl, 
                           width: 80, height: 80, fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(width: 80, height: 80, color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+                          errorBuilder: (_, __, ___) => Container(width: 80, height: 80, color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -308,7 +308,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           contentPadding: const EdgeInsets.all(16),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
                           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0EA554))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: const Color(0xFF0EA554))),
                         ),
                       ),
                       
@@ -334,7 +334,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: _selectedMedias.length + 1,
-                            separatorBuilder: (_, _) => const SizedBox(width: 10),
+                            separatorBuilder: (_, __) => const SizedBox(width: 10),
                             itemBuilder: (context, index) {
                               // Tombol Add (+) di akhir list
                               if (index == _selectedMedias.length) {
@@ -387,7 +387,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             ),
                             child: const Column(
                               children: [
-                                Icon(Icons.camera_alt, color: Color(0xFF0EA554)),
+                                Icon(Icons.camera_alt, color: const Color(0xFF0EA554)),
                                 SizedBox(height: 8),
                                 Text('Add a photo or video', style: TextStyle(color: Color(0xFF0EA554), fontWeight: FontWeight.w700, fontSize: 13)),
                               ],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'history_screen.dart';
+import '../../../history/presentation/screens/history_screen.dart';
 import 'home_screen.dart';
-import 'profile_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;

@@ -1,17 +1,14 @@
 import 'package:flutter/foundation.dart';
-
+import 'dart:io';
 import '../../../../shared/models/user_model.dart';
 import '../../../../shared/network/api_client.dart';
 
 // --- 2. AUTH REPOSITORY ---
-// Idealnya diletakkan di: lib/features/auth/data/auth_repository.dart
 class AuthRepository {
   final ApiClient apiClient;
 
   AuthRepository({required this.apiClient});
 
-  // Asumsi Request Body: { "email": "...", "password": "..." }
-  // Asumsi Response JSON: { "status": "success", "data": { "token": "1|abc...", "user": { ... } } }
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await apiClient.post('/login', {
@@ -21,23 +18,96 @@ class AuthRepository {
 
       return _parseAuthResponse(response);
     } catch (e) {
-      // Menangkap error dari ApiClient (misal: "Error 401: Email/Password salah")
       rethrow;
     }
   }
-  
+
+  // PERBAIKAN: Mengembalikan Map (berisi token dan user) agar sama dengan login biasa
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    try {
+      final response = await apiClient.post('/auth/google', {
+        'id_token': idToken,
+      }, unwrapData: false);
+
+      // Gunakan parser bawaanmu untuk mengekstrak token dan user dengan aman
+      return _parseAuthResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<UserModel> updateProfile({
+    required String fullName,
+    required String phoneNumber,
+    required String address,
+    File? imageFile,
+    bool removeImage = false,
+  }) async {
+    try {
+      final fields = <String, String>{
+        'nama': fullName,
+        'no_hp': phoneNumber,
+        'alamat': address,
+      };
+
+      if (removeImage) {
+        fields['remove_image'] = 'true';
+      }
+
+      final response = await apiClient.postMultipart(
+        '/profile',
+        fields,
+        file: removeImage ? null : imageFile,
+        fileField: 'user_image',
+        unwrapData: false,
+      );
+
+      final userJson = _readMap(response, ['user', 'data.user', 'data']);
+
+      if (userJson == null) {
+        throw Exception('Gagal membaca data profil terbaru dari server.');
+      }
+
+      return UserModel.fromJson(userJson);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<UserModel> updatePrivacy({
+    required String email,
+    String? password,
+  }) async {
+    try {
+      final Map<String, dynamic> body = {'email': email};
+
+      if (password != null && password.trim().isNotEmpty) {
+        body['password'] = password;
+      }
+
+      final response = await apiClient.post(
+        '/privacy',
+        body,
+        unwrapData: false,
+      );
+
+      final userJson = _readMap(response, ['user', 'data.user', 'data']);
+      if (userJson == null) throw Exception('Gagal membaca data dari server.');
+
+      return UserModel.fromJson(userJson);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     try {
-      // Memanggil endpoint logout di Laravel untuk menghapus token di sisi server
       await apiClient.post('/logout', {}, unwrapData: false);
     } catch (e) {
-      // Kita menelan error ini (tidak me-rethrow). 
-      // Kenapa? Jika user sedang offline/tidak ada sinyal, mereka tetap HARUS BISA logout dari memori lokal HP-nya.
       debugPrint('Warning: Gagal menghapus token di server: $e');
     }
   }
 
-  // Asumsi Request Body sesuai field UserModel ditambah password
   Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,
@@ -50,7 +120,7 @@ class AuthRepository {
         'email': email,
         'no_hp': phoneNumber,
         'password': password,
-        'password_confirmation': password, // Laravel biasanya butuh field ini
+        'password_confirmation': password,
       }, unwrapData: false);
 
       return _parseAuthResponse(
@@ -88,10 +158,7 @@ class AuthRepository {
       throw Exception('Data user tidak ditemukan dari response Laravel.');
     }
 
-    return {
-      'token': token ?? '',
-      'user': user,
-    };
+    return {'token': token ?? '', 'user': user};
   }
 
   String? _readString(Map<String, dynamic> source, List<String> paths) {
@@ -124,4 +191,3 @@ class AuthRepository {
     return current;
   }
 }
-

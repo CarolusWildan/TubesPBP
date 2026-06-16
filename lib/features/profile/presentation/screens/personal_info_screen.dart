@@ -327,7 +327,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       // 🟢 PEMBARUAN URL DINAMIS STORAGE NGROK
       // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
       final String fullImageUrl =
-          '${ApiClient.serverUrl}/storage/${user.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+          '${ApiClient.serverUrl}/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
       profileImageProvider = NetworkImage(
         fullImageUrl,
         headers: ApiClient.imageHeaders,
