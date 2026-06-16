@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Aplikasi membutuhkan mikrofon untuk mencari hotel menggunakan suara.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Aplikasi membutuhkan speech recognition untuk mengubah suara menjadi kata pencarian hotel.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
