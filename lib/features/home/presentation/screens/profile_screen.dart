@@ -21,7 +21,27 @@ class ProfileScreen extends StatelessWidget {
         : 'Astro Tankenira';
     final email = user?.email.trim().isNotEmpty == true
         ? user!.email
+<<<<<<< Updated upstream:lib/features/home/presentation/screens/profile_screen.dart
         : 'astrogaming@gmail.com';
+=======
+        : 'user@gmail.com';
+
+    // --- Logika Penentuan Gambar Profile ---
+    final bool hasDatabaseImage = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    final String initials = _getInitials(displayName);
+
+    ImageProvider? profileImageProvider;
+    if (hasDatabaseImage) {
+      // 🟢 Ganti URL ini dengan URL Ngrok kamu yang sedang aktif + '/storage/'
+      // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
+      final String fullImageUrl =
+          '${ApiClient.serverUrl}/storage/${user.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+      profileImageProvider = NetworkImage(
+        fullImageUrl,
+        headers: ApiClient.imageHeaders,
+      );
+    }
+>>>>>>> Stashed changes:lib/features/profile/presentation/screens/profile_screen.dart
 
     return Container(
       color: _primaryGreen,
