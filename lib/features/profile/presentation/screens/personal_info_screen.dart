@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/network/api_client.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -15,19 +16,19 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
-  
+
   // State untuk menyimpan data asli pembanding
   late String _initialName;
   late String _initialPhone;
   late String _initialAddress;
-  
+
   // State manajemen gambar
   File? _selectedImageFile;
   bool _isPhotoRemoved = false;
   final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false;
-  bool _hasChanges = false; 
+  bool _hasChanges = false;
 
   static const Color _primaryGreen = Color(0xFF0EA554);
   static const Color _inputBackground = Color(0xFFF8F9FA);
@@ -39,15 +40,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
 
     _initialName = currentUser?.fullName ?? '';
     _initialPhone = currentUser?.noHp ?? '';
-    _initialAddress = currentUser?.alamat ?? ''; 
+    _initialAddress = currentUser?.alamat ?? '';
 
     _nameController = TextEditingController(text: _initialName);
     _phoneController = TextEditingController(text: _initialPhone);
-    _addressController = TextEditingController(text: _initialAddress); 
+    _addressController = TextEditingController(text: _initialAddress);
 
     _nameController.addListener(_checkForChanges);
     _phoneController.addListener(_checkForChanges);
-    _addressController.addListener(_checkForChanges); 
+    _addressController.addListener(_checkForChanges);
   }
 
   @override
@@ -65,14 +66,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     final currentName = _nameController.text.trim();
     final currentPhone = _phoneController.text.trim();
     final currentAddress = _addressController.text.trim();
-    
-    final isTextChanged = currentName != _initialName || 
-                          currentPhone != _initialPhone || 
-                          currentAddress != _initialAddress;
-    
+
+    final isTextChanged =
+        currentName != _initialName ||
+        currentPhone != _initialPhone ||
+        currentAddress != _initialAddress;
+
     final isPhotoChanged = _selectedImageFile != null || _isPhotoRemoved;
     final isChanged = isTextChanged || isPhotoChanged;
-    
+
     if (_hasChanges != isChanged) {
       setState(() => _hasChanges = isChanged);
     }
@@ -92,7 +94,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       context: context,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
             child: Column(
@@ -114,7 +118,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   textColor: const Color(0xFF0EA554),
                   onTap: () async {
                     Navigator.pop(dialogContext);
-                    final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.camera,
+                    );
                     if (image != null) {
                       setState(() {
                         _selectedImageFile = File(image.path);
@@ -132,7 +138,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   textColor: const Color(0xFF1976D2),
                   onTap: () async {
                     Navigator.pop(dialogContext);
-                    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                    final XFile? image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
                     if (image != null) {
                       setState(() {
                         _selectedImageFile = File(image.path);
@@ -189,7 +197,11 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             const SizedBox(width: 12),
             Text(
               label,
-              style: TextStyle(color: textColor, fontWeight: FontWeight.w600, fontSize: 14),
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -203,7 +215,9 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
@@ -237,13 +251,15 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                         value: value,
                         minHeight: 8,
                         backgroundColor: const Color(0xFFE8F5E9),
-                        valueColor: const AlwaysStoppedAnimation<Color>(_primaryGreen),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          _primaryGreen,
+                        ),
                       );
                     },
                     onEnd: () {
                       if (!mounted) return;
-                      Navigator.of(dialogContext).pop(); 
-                      Navigator.of(context).pop(); 
+                      Navigator.of(dialogContext).pop();
+                      Navigator.of(context).pop();
                     },
                   ),
                 ),
@@ -256,7 +272,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   }
 
   Future<void> _handleSave() async {
-    if (_nameController.text.trim().isEmpty || _phoneController.text.trim().isEmpty) {
+    if (_nameController.text.trim().isEmpty ||
+        _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Name and Call Number must be filled!')),
       );
@@ -266,20 +283,28 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await context.read<AuthProvider>().updateProfile(
+      final authProvider = context.read<AuthProvider>();
+      final success = await authProvider.updateProfile(
         fullName: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         address: _addressController.text.trim(),
         imageFile: _selectedImageFile,
+        removeImage: _isPhotoRemoved,
       );
+
+      if (!success) {
+        throw Exception(
+          authProvider.errorMessage ?? 'Failed to update profile.',
+        );
+      }
 
       if (!mounted) return;
       _showSuccessDialog();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update profile: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -288,20 +313,25 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    
+
     final String fullName = user?.fullName ?? 'Guest';
     final String initials = _getInitials(fullName);
-    
-    final bool hasDatabaseImage = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
-    
+
+    final bool hasDatabaseImage =
+        user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+
     ImageProvider? profileImageProvider;
     if (_selectedImageFile != null) {
       profileImageProvider = FileImage(_selectedImageFile!);
     } else if (hasDatabaseImage && !_isPhotoRemoved) {
       // 🟢 PEMBARUAN URL DINAMIS STORAGE NGROK
       // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
-final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
-      profileImageProvider = NetworkImage(fullImageUrl);
+      final String fullImageUrl =
+          '${ApiClient.serverUrl}/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+      profileImageProvider = NetworkImage(
+        fullImageUrl,
+        headers: ApiClient.imageHeaders,
+      );
     }
 
     return Scaffold(
@@ -316,7 +346,11 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
         ),
         title: const Text(
           'Personal Information',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       body: SafeArea(
@@ -324,7 +358,10 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
           children: [
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 32,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -332,7 +369,10 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey.shade200, width: 2),
+                        border: Border.all(
+                          color: Colors.grey.shade200,
+                          width: 2,
+                        ),
                       ),
                       child: CircleAvatar(
                         radius: 50,
@@ -355,7 +395,11 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
                       onTap: _isLoading ? null : _showPhotoActionDialog,
                       child: const Text(
                         'Edit Photo Profile',
-                        style: TextStyle(color: _primaryGreen, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: _primaryGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -383,7 +427,7 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
                 ),
               ),
             ),
-            
+
             // --- Tombol Simpan ---
             Padding(
               padding: const EdgeInsets.all(24.0),
@@ -393,21 +437,30 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
                 child: ElevatedButton(
                   onPressed: (_hasChanges && !_isLoading) ? _handleSave : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _primaryGreen, 
+                    backgroundColor: _primaryGreen,
                     disabledBackgroundColor: Colors.grey.shade300,
                     disabledForegroundColor: Colors.grey.shade500,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                   child: _isLoading
                       ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
                         )
                       : const Text(
                           'Save',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
                         ),
                 ),
               ),
@@ -429,7 +482,11 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF202124), fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            color: Color(0xFF202124),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -439,8 +496,14 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
           decoration: InputDecoration(
             filled: true,
             fillColor: _inputBackground,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
           ),
         ),
       ],
@@ -457,16 +520,30 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
       children: [
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF202124), fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            color: Color(0xFF202124),
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(color: _inputBackground, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: _inputBackground,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             children: [
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text('+62', style: TextStyle(color: Colors.grey, fontSize: 15, fontWeight: FontWeight.w500)),
+                child: Text(
+                  '+62',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
               Container(width: 1, height: 24, color: Colors.grey.shade400),
               Expanded(
@@ -476,7 +553,10 @@ final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/sto
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
                 ),
               ),

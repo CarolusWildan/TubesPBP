@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 // 1. UBAH IMPORT: Kita ganti GetStartedScreen dengan LoginScreen
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../../shared/network/api_client.dart';
 import 'personal_info_screen.dart';
 import 'privacy_policy_screen.dart';
 
@@ -44,8 +45,12 @@ class ProfileScreen extends StatelessWidget {
     if (hasDatabaseImage) {
       // 🟢 Ganti URL ini dengan URL Ngrok kamu yang sedang aktif + '/storage/'
       // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
-final String fullImageUrl = 'https://mortality-emote-creasing.ngrok-free.dev/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
-      profileImageProvider = NetworkImage(fullImageUrl);
+      final String fullImageUrl =
+          '${ApiClient.serverUrl}/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+      profileImageProvider = NetworkImage(
+        fullImageUrl,
+        headers: ApiClient.imageHeaders,
+      );
     }
 
     return Container(
