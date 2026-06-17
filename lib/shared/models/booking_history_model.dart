@@ -165,6 +165,7 @@ class BookingHistoryModel {
 
   bool get isPending => paymentStatus.toLowerCase().contains('pending');
   bool get isSuccess => paymentStatus.toLowerCase().contains('success');
+  bool get isCancel => paymentStatus.toLowerCase().contains('cancel');
   bool get isReviewed => reviewStatus.trim().toLowerCase() == 'reviewed';
   bool get needsReview => isSuccess && !isReviewed;
 
