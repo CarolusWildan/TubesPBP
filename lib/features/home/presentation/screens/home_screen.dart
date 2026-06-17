@@ -42,13 +42,21 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _openSearchScreen({String? query}) {
-    Navigator.push(
+  Future<void> _openSearchScreen({String? query}) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => PencarianDaftarHotelScreen(initialQuery: query),
       ),
     );
+
+    if (mounted) {
+      // 1. WAJIB: Kosongkan kata kunci pencarian agar saringan terbuka penuh
+      context.read<HomeProvider>().updateSearchQuery(''); 
+      
+      // 2. Muat ulang data dari server untuk memastikan Home Screen segar kembali
+      context.read<HomeProvider>().loadHomeData();
+    }
   }
 
   Future<void> _startVoiceSearch() async {
@@ -158,7 +166,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   SliverAppBar(
                     pinned: true,
                     floating: false,
-                    expandedHeight: 240,
+                    expandedHeight: 180, // mengurangi tinggi
+                    toolbarHeight: 80,
                     backgroundColor: Colors.transparent,
                     elevation: 0,
                     flexibleSpace: Container(
@@ -225,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     iconTheme: const IconThemeData(color: Colors.white),
                     bottom: PreferredSize(
-                      preferredSize: const Size.fromHeight(170),
+                      preferredSize: const Size.fromHeight(94), // megurangi tinggi
                       child: Column(
                         children: [
                           const SizedBox(height: 16),
@@ -339,78 +348,82 @@ class _HomeScreenState extends State<HomeScreen> {
                                 final totalHotels = homeProvider.hotels
                                     .where((hotel) => hotel.kota.trim() == city)
                                     .length;
-
-                                return Container(
-                                  width: 190,
-                                  margin: const EdgeInsets.only(right: 16),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(24),
-                                    color: Colors.white,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.08),
-                                        blurRadius: 18,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(24),
-                                    child: Stack(
-                                      children: [
-                                        Positioned.fill(
-                                          child: _hotelImage(
-                                            sampleHotel?.hotelImage,
-                                            width: double.infinity,
-                                            height: 190,
-                                          ),
+                                    
+                                return GestureDetector(
+                                  onTap: () {
+                                    // Melempar nama kota sebagai query pencarian
+                                    _openSearchScreen(query: city);
+                                  },
+                                  child: Container(
+                                    width: 190,
+                                    margin: const EdgeInsets.only(right: 16),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(24),
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.08),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 10),
                                         ),
-                                        Positioned.fill(
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                begin: Alignment.bottomCenter,
-                                                end: Alignment.topCenter,
-                                                colors: [
-                                                  Colors.black.withOpacity(
-                                                    0.22,
-                                                  ),
-                                                  Colors.transparent,
-                                                ],
+                                      ],
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(24),
+                                      child: Stack(
+                                        children: [
+                                          Positioned.fill(
+                                            child: _hotelImage(
+                                              sampleHotel?.hotelImage,
+                                              width: double.infinity,
+                                              height: 190,
+                                            ),
+                                          ),
+                                          Positioned.fill(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  begin: Alignment.bottomCenter,
+                                                  end: Alignment.topCenter,
+                                                  colors: [
+                                                    Colors.black.withOpacity(0.22),
+                                                    Colors.transparent,
+                                                  ],
+                                                ),
                                               ),
                                             ),
                                           ),
-                                        ),
-                                        Positioned(
-                                          left: 16,
-                                          right: 16,
-                                          bottom: 16,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                city,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16,
+                                          Positioned(
+                                            left: 16,
+                                            right: 16,
+                                            bottom: 16,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  city,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                '$totalHotels hotel tersedia',
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 12,
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  '$totalHotels hotel tersedia',
+                                                  style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 12,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
