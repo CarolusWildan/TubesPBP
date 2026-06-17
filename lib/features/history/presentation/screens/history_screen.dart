@@ -13,8 +13,9 @@ typedef HistoryBookingItem = BookingHistoryModel;
 
 class HistoryScreen extends StatefulWidget {
   final BookingHistoryModel? latestBooking;
+  final String? initialFilter;
 
-  const HistoryScreen({super.key, this.latestBooking});
+  const HistoryScreen({super.key, this.latestBooking, this.initialFilter});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -30,6 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedFilter = widget.initialFilter ?? _selectedFilter;
     _loadHistory();
   }
 
@@ -128,12 +130,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<BookingHistoryModel> _mergeBookings(List<BookingHistoryModel> fetched) {
     final merged = <String, BookingHistoryModel>{};
 
-    if (widget.latestBooking != null) {
-      merged[widget.latestBooking!.idPayment ?? '-'] = widget.latestBooking!;
-    }
-
     for (final booking in fetched) {
       merged[booking.idPayment ?? '-'] = booking;
+    }
+
+    if (widget.latestBooking != null) {
+      merged[widget.latestBooking!.idPayment ?? '-'] = widget.latestBooking!;
     }
 
     return merged.values.toList()

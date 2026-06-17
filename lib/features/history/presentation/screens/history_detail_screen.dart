@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'review_screen.dart';
 
 import '../../../../shared/models/booking_history_model.dart';
+import '../../../home/presentation/screens/main_screen.dart';
 import '../../../booking/presentation/screens/payment_instruction_screen.dart';
 import '../widgets/history_booking_card.dart';
 import 'ticket_screen.dart';
@@ -14,13 +15,26 @@ class HistoryDetailScreen extends StatelessWidget {
 
   String get _title => booking.hotelName;
 
-  Color get _statusColor =>
-      booking.isSuccess ? const Color(0xFF0EA554) : const Color(0xFFFF8A00);
+  Color get _statusColor {
+    if (booking.isCancel) return const Color(0xFFE53935);
+    return booking.isSuccess ? const Color(0xFF0EA554) : const Color(0xFFFF8A00);
+  }
 
-  IconData get _statusIcon =>
-      booking.isSuccess ? Icons.check_circle : Icons.pending_actions;
+  IconData get _statusIcon {
+    if (booking.isCancel) return Icons.cancel;
+    return booking.isSuccess ? Icons.check_circle : Icons.pending_actions;
+  }
 
-  String get _statusLabel => booking.isSuccess ? 'Success' : 'Pending';
+  String get _statusLabel {
+    if (booking.isCancel) return 'Cancel';
+    return booking.isSuccess ? 'Success' : 'Pending';
+  }
+
+  String get _statusMessage {
+    if (booking.isCancel) return 'Your booking has been cancelled';
+    if (booking.isSuccess) return 'Your payment has been completed';
+    return 'Pay now to complete transaction';
+  }
 
   String _formatDate(DateTime date) {
     return DateFormat('EEE, d MMM yyyy').format(date);
@@ -67,10 +81,23 @@ class HistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(
+  void _cancelBooking(BuildContext context) {
+    final cancelledBooking = booking.copyWith(
+      paymentStatus: 'Payment Cancel',
+      reviewStatus: '',
+    );
+
+    Navigator.pushAndRemoveUntil(
       context,
-    ).showSnackBar(SnackBar(content: Text('$feature belum tersedia.')));
+      MaterialPageRoute(
+        builder: (_) => MainScreen(
+          initialIndex: 1,
+          latestBooking: cancelledBooking,
+          initialHistoryFilter: 'Cancel',
+        ),
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -92,9 +119,7 @@ class HistoryDetailScreen extends StatelessWidget {
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                   style: IconButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(
-                      0.22,
-                    ), // Standarisasi opacity lawas/baru
+                    backgroundColor: Colors.white.withValues(alpha: 0.22),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -126,7 +151,7 @@ class HistoryDetailScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
+                        color: Colors.black.withValues(alpha: 0.12),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -145,9 +170,7 @@ class HistoryDetailScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        booking.isSuccess
-                            ? 'Your payment has been completed'
-                            : 'Pay now to complete transaction',
+                        _statusMessage,
                         style: TextStyle(
                           color: Colors.grey.shade500,
                           fontSize: 9,
@@ -224,13 +247,19 @@ class HistoryDetailScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 28),
-                      if (booking.isPending) ...[
+                      if (booking.isCancel) ...[
+                        _DetailButton(
+                          label: 'Back',
+                          backgroundColor: const Color(0xFFFFCDD2),
+                          foregroundColor: Colors.red,
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ] else if (booking.isPending) ...[
                         _DetailButton(
                           label: 'Cancel Booking',
                           backgroundColor: const Color(0xFFFFCDD2),
                           foregroundColor: Colors.red,
-                          onPressed: () =>
-                              _showComingSoon(context, 'Cancel booking'),
+                          onPressed: () => _cancelBooking(context),
                         ),
                         const SizedBox(height: 10),
                         _DetailButton(
