@@ -5,6 +5,7 @@ import '../../../hotel/presentation/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../home/presentation/screens/main_screen.dart';
+import '../../../../shared/widgets/confirmation_dialog.dart';
 
 class PaymentInstructionScreen extends StatelessWidget {
   final String hotelName;
@@ -46,7 +47,7 @@ class PaymentInstructionScreen extends StatelessWidget {
     return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}';
   }
 
-  HistoryBookingItem _buildPendingHistoryItem() {
+  HistoryBookingItem _buildHistoryItem({String status = 'Payment Pending'}) {
     return HistoryBookingItem(
       idPayment: _paymentReference,
       hotelName: hotelName,
@@ -55,7 +56,7 @@ class PaymentInstructionScreen extends StatelessWidget {
       checkIn: checkIn,
       checkOut: checkOut,
       totalPayment: totalPayment,
-      paymentStatus: 'Payment Pending',
+      paymentStatus: status,
     );
   }
 
@@ -123,7 +124,7 @@ class PaymentInstructionScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => MainScreen(
                           initialIndex: 1,
-                          latestBooking: _buildPendingHistoryItem(),
+                          latestBooking: _buildHistoryItem(),
                         ),
                       ),
                       (route) => false,
@@ -149,15 +150,25 @@ class PaymentInstructionScreen extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MainScreen(
-                          initialIndex: 0,
-                          latestBooking: _buildPendingHistoryItem(),
-                        ),
-                      ),
-                      (route) => false,
+                    showSuccessConfirmationDialog(
+                      context: context,
+                      title: 'Success',
+                      message: 'Your payment has been completed successfully',
+                      buttonText: 'Continue',
+                      onPressed: () {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MainScreen(
+                              initialIndex: 0,
+                              latestBooking: _buildHistoryItem(
+                                status: 'Payment Success',
+                              ),
+                            ),
+                          ),
+                          (route) => false,
+                        );
+                      },
                     );
                   },
                   style: ElevatedButton.styleFrom(

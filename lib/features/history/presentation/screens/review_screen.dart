@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/services/local_storage_service.dart';
+import '../../../../shared/widgets/confirmation_dialog.dart';
 
 // Sesuaikan path import ini jika letak file model & api client Anda berbeda
 import '../../../../shared/models/booking_history_model.dart';
@@ -28,7 +29,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   String _formatDateRange(DateTime start, DateTime end) {
     final dateFormat = DateFormat('d MMM');
     final yearFormat = DateFormat('yyyy');
-    
+
     if (start.year == end.year) {
       return '${dateFormat.format(start)} - ${dateFormat.format(end)} ${yearFormat.format(start)}';
     }
@@ -37,7 +38,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _pickMedia(ImageSource source) async {
     Navigator.pop(context); // Tutup bottom sheet
-    
+
     try {
       if (source == ImageSource.gallery) {
         // Ambil banyak foto sekaligus
@@ -58,7 +59,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal mengambil gambar: $e')));
       }
     }
   }
@@ -67,7 +70,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
         return Container(
           padding: const EdgeInsets.all(24),
@@ -75,7 +80,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Upload Photo or Video', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              const Text(
+                'Upload Photo or Video',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
               const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -95,11 +103,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     onTap: () => _pickMedia(ImageSource.gallery),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         );
-      }
+      },
     );
   }
 
@@ -116,22 +124,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
     try {
       final storageService = LocalStorageService();
       final apiClient = ApiClient(storageService: storageService);
-      
-      await apiClient.postMultipartMultiple(
-        '/reviews',
-        {
-          'id_user': widget.booking.userId ?? '',
-          'id_booking': widget.booking.bookingId ?? '',
-          'id_hotel': widget.booking.hotelId ?? 'HTL001',
-          'rating': _rating.toString(),
-          'komentar': _reviewController.text,
-        },
-        files: _selectedMedias,
-      );
+
+      await apiClient.postMultipartMultiple('/reviews', {
+        'id_user': widget.booking.userId ?? '',
+        'id_booking': widget.booking.bookingId ?? '',
+        'id_hotel': widget.booking.hotelId ?? 'HTL001',
+        'rating': _rating.toString(),
+        'komentar': _reviewController.text,
+      }, files: _selectedMedias);
 
       if (!mounted) return;
       _showSuccessDialog();
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,45 +147,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   void _showSuccessDialog() {
-    showDialog(
+    showSuccessConfirmationDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.fact_check_outlined, color: Color(0xFF0EA554), size: 70),
-            const SizedBox(height: 16),
-            const Text('Submitted', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(
-              'Your review has been saved successfully', 
-              textAlign: TextAlign.center, 
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13)
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Tutup dialog
-                  Navigator.pop(context, true); // Kembali ke History Detail, bawa nilai "true" (Sukses)
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0EA554),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Text('Continue', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            )
-          ],
-        ),
-      ),
+      title: 'Success',
+      message: 'Your review has been saved successfully',
+      buttonText: 'Continue',
+      onPressed: () {
+        Navigator.pop(context);
+        Navigator.pop(context, true);
+      },
     );
   }
 
@@ -207,7 +180,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 IconButton(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  style: IconButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.22)),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.22),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -215,13 +190,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     widget.booking.hotelName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           Expanded(
             child: Transform.translate(
               offset: const Offset(0, -56),
@@ -247,22 +226,54 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
-                          widget.booking.imageUrl, 
-                          width: 80, height: 80, fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(width: 80, height: 80, color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+                          widget.booking.imageUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80,
+                            height: 80,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.broken_image),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(widget.booking.hotelName, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16), textAlign: TextAlign.center),
+                      Text(
+                        widget.booking.hotelName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 4),
-                      Text(widget.booking.location, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      Text(
+                        widget.booking.location,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('Stayed on ${_formatDateRange(widget.booking.checkIn, widget.booking.checkOut)}', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
-                      
+                      Text(
+                        'Stayed on ${_formatDateRange(widget.booking.checkIn, widget.booking.checkOut)}',
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 11,
+                        ),
+                      ),
+
                       const SizedBox(height: 36),
-                      
+
                       // Rating Section
-                      const Text('HOW WAS YOUR EXPERIENCE?', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                      const Text(
+                        'HOW WAS YOUR EXPERIENCE?',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -270,10 +281,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           return GestureDetector(
                             onTap: () => setState(() => _rating = index + 1),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                              ),
                               child: Icon(
-                                index < _rating ? Icons.star : Icons.star_border,
-                                color: index < _rating ? const Color(0xFFFFB800) : Colors.grey.shade300,
+                                index < _rating
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: index < _rating
+                                    ? const Color(0xFFFFB800)
+                                    : Colors.grey.shade300,
                                 size: 42,
                               ),
                             ),
@@ -281,7 +298,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         }),
                       ),
                       const SizedBox(height: 8),
-                      Text('Select a rating', style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                      Text(
+                        'Select a rating',
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 11,
+                        ),
+                      ),
 
                       const SizedBox(height: 32),
 
@@ -291,9 +314,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         child: RichText(
                           text: TextSpan(
                             text: 'Review Details ',
-                            style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black87, fontSize: 13),
-                            children: [TextSpan(text: '(Optional)', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.normal))],
-                          )
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black87,
+                              fontSize: 13,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: '(Optional)',
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -302,16 +337,30 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         maxLines: 4,
                         decoration: InputDecoration(
                           hintText: 'Share your stay experience...',
-                          hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 13,
+                          ),
                           filled: true,
                           fillColor: const Color(0xFFF9FAFB),
                           contentPadding: const EdgeInsets.all(16),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: const Color(0xFF0EA554))),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                              color: const Color(0xFF0EA554),
+                            ),
+                          ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
 
                       // Upload Media Section
@@ -320,13 +369,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
                         child: RichText(
                           text: TextSpan(
                             text: 'Photo or Video ',
-                            style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.black87, fontSize: 13),
-                            children: [TextSpan(text: '(Optional)', style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.normal))],
-                          )
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black87,
+                              fontSize: 13,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: '(Optional)',
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      
+
                       // Grid Selected Images + Tombol Add
                       if (_selectedMedias.isNotEmpty)
                         SizedBox(
@@ -334,19 +395,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             itemCount: _selectedMedias.length + 1,
-                            separatorBuilder: (_, __) => const SizedBox(width: 10),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 10),
                             itemBuilder: (context, index) {
                               // Tombol Add (+) di akhir list
                               if (index == _selectedMedias.length) {
                                 return GestureDetector(
                                   onTap: _showMediaPickerBottomSheet,
                                   child: Container(
-                                    width: 80, height: 80,
+                                    width: 80,
+                                    height: 80,
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFE5F5EC),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: const Icon(Icons.add, color: Color(0xFF0EA554), size: 30),
+                                    child: const Icon(
+                                      Icons.add,
+                                      color: Color(0xFF0EA554),
+                                      size: 30,
+                                    ),
                                   ),
                                 );
                               }
@@ -356,16 +423,31 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 children: [
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(8),
-                                    child: Image.file(_selectedMedias[index], width: 80, height: 80, fit: BoxFit.cover),
+                                    child: Image.file(
+                                      _selectedMedias[index],
+                                      width: 80,
+                                      height: 80,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                   Positioned(
-                                    top: 4, right: 4,
+                                    top: 4,
+                                    right: 4,
                                     child: GestureDetector(
-                                      onTap: () => setState(() => _selectedMedias.removeAt(index)),
+                                      onTap: () => setState(
+                                        () => _selectedMedias.removeAt(index),
+                                      ),
                                       child: Container(
                                         padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                                        child: const Icon(Icons.close, color: Colors.white, size: 14),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -387,9 +469,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
                             ),
                             child: const Column(
                               children: [
-                                Icon(Icons.camera_alt, color: const Color(0xFF0EA554)),
+                                Icon(
+                                  Icons.camera_alt,
+                                  color: const Color(0xFF0EA554),
+                                ),
                                 SizedBox(height: 8),
-                                Text('Add a photo or video', style: TextStyle(color: Color(0xFF0EA554), fontWeight: FontWeight.w700, fontSize: 13)),
+                                Text(
+                                  'Add a photo or video',
+                                  style: TextStyle(
+                                    color: Color(0xFF0EA554),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -401,20 +493,37 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isButtonActive && !_isLoading ? _submitReview : null,
+                          onPressed: isButtonActive && !_isLoading
+                              ? _submitReview
+                              : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF0EA554),
                             disabledBackgroundColor: Colors.grey.shade300,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
-                          child: _isLoading 
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : Text(
-                                'Submit Review', 
-                                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: isButtonActive ? Colors.white : Colors.grey.shade500)
-                              ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'Submit Review',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                    color: isButtonActive
+                                        ? Colors.white
+                                        : Colors.grey.shade500,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -436,7 +545,13 @@ class _MediaOptionBtn extends StatelessWidget {
   final Color iconColor;
   final VoidCallback onTap;
 
-  const _MediaOptionBtn({required this.icon, required this.title, required this.bgColor, required this.iconColor, required this.onTap});
+  const _MediaOptionBtn({
+    required this.icon,
+    required this.title,
+    required this.bgColor,
+    required this.iconColor,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -445,12 +560,22 @@ class _MediaOptionBtn extends StatelessWidget {
       child: Container(
         width: 130,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Column(
           children: [
             Icon(icon, color: iconColor, size: 30),
             const SizedBox(height: 8),
-            Text(title, style: TextStyle(color: iconColor, fontWeight: FontWeight.w800, fontSize: 13)),
+            Text(
+              title,
+              style: TextStyle(
+                color: iconColor,
+                fontWeight: FontWeight.w800,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       ),

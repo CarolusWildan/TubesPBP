@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../../../../shared/widgets/custom_text_field.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../../shared/widgets/confirmation_dialog.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -114,14 +115,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     phoneNumber: _phoneController.text,
                     password: _passwordController.text,
                   );
-                  if (success && mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Register berhasil. Silakan sign in.'),
-                        backgroundColor: Color(0xFF0EA554),
-                      ),
+                  if (!context.mounted) return;
+
+                  if (success) {
+                    showSuccessConfirmationDialog(
+                      context: context,
+                      title: 'Success',
+                      message: 'Register berhasil. Silakan sign in.',
+                      buttonText: 'Got it',
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.pop(context);
+                      },
                     );
-                    Navigator.pop(context);
                   }
                 },
               ),
