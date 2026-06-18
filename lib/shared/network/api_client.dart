@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io'; // 🟢 WAJIB DITAMBAHKAN UNTUK MENGENALI DATA 'File'
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../../core/services/local_storage_service.dart';
 
@@ -7,9 +8,13 @@ class ApiClient {
   ApiClient({LocalStorageService? storageService})
     : _storageService = storageService;
 
-  // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
-  static const String baseUrl =
-      'https://preppy-unfunded-sacred.ngrok-free.dev/api';
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL']?.trim();
+    if (url == null || url.isEmpty) {
+      throw Exception('API_BASE_URL belum diatur di file .env');
+    }
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
   static String get serverUrl => baseUrl.replaceFirst('/api', '');
   static const Map<String, String> imageHeaders = {
     'ngrok-skip-browser-warning': 'true',
