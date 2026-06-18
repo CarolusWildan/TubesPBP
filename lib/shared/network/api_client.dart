@@ -9,7 +9,7 @@ class ApiClient {
 
   // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
   static const String baseUrl =
-      'https://preppy-unfunded-sacred.ngrok-free.dev/api';
+      'https://grumbling-smoking-aside.ngrok-free.dev/api';
   static String get serverUrl => baseUrl.replaceFirst('/api', '');
   static const Map<String, String> imageHeaders = {
     'ngrok-skip-browser-warning': 'true',
@@ -25,7 +25,7 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'ngrok-skip-browser-warning': 'true', 
+      'ngrok-skip-browser-warning': 'true',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -78,10 +78,13 @@ class ApiClient {
     bool unwrapData = true,
   }) async {
     final token = await _getToken();
-    
+
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
-      
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+
       // Header untuk autentikasi (Tanpa Content-Type karena diatur otomatis oleh MultipartRequest)
       request.headers.addAll({
         'Accept': 'application/json',
@@ -95,7 +98,7 @@ class ApiClient {
       // 2. Masukkan data file (Gambar Profil) jika ada
       if (file != null) {
         request.files.add(
-          await http.MultipartFile.fromPath(fileField, file.path)
+          await http.MultipartFile.fromPath(fileField, file.path),
         );
       }
 
@@ -105,7 +108,6 @@ class ApiClient {
 
       // 4. Proses balasan menggunakan logika yang sama
       return _processResponse(response, unwrapData: unwrapData);
-      
     } catch (e) {
       throw Exception('Gagal mengirim data. Periksa koneksi internet Anda.');
     }
@@ -119,10 +121,13 @@ class ApiClient {
     bool unwrapData = true,
   }) async {
     final token = await _getToken();
-    
+
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
-      
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+
       request.headers.addAll({
         'Accept': 'application/json',
         'ngrok-skip-browser-warning': 'true',
@@ -135,7 +140,7 @@ class ApiClient {
       if (files != null && files.isNotEmpty) {
         for (var file in files) {
           request.files.add(
-            await http.MultipartFile.fromPath(fileField, file.path)
+            await http.MultipartFile.fromPath(fileField, file.path),
           );
         }
       }
