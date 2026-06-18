@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/network/api_client.dart';
+import '../../../../shared/widgets/confirmation_dialog.dart';
 
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -210,63 +211,22 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   }
 
   void _showSuccessDialog() {
-    showDialog(
+    final changedPhotoOnly =
+        (_selectedImageFile != null || _isPhotoRemoved) &&
+        _nameController.text.trim() == _initialName &&
+        _phoneController.text.trim() == _initialPhone &&
+        _addressController.text.trim() == _initialAddress;
+
+    showSuccessConfirmationDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check_box, color: _primaryGreen, size: 60),
-                const SizedBox(height: 16),
-                const Text(
-                  'Success',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Your profile details have been changed successfully',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.black87, fontSize: 14),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Directing to Home...',
-                  style: TextStyle(color: Colors.black54, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: 0.0, end: 1.0),
-                    duration: const Duration(seconds: 2),
-                    builder: (context, value, _) {
-                      return LinearProgressIndicator(
-                        value: value,
-                        minHeight: 8,
-                        backgroundColor: const Color(0xFFE8F5E9),
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          _primaryGreen,
-                        ),
-                      );
-                    },
-                    onEnd: () {
-                      if (!mounted) return;
-                      Navigator.of(dialogContext).pop();
-                      Navigator.of(context).pop();
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+      title: 'Success',
+      message: changedPhotoOnly
+          ? 'Your photo profile have been changed successfully'
+          : 'Your profile details have been changed successfully',
+      buttonText: 'Got it',
+      onPressed: () {
+        Navigator.of(context).pop();
+        Navigator.of(context).pop();
       },
     );
   }
@@ -317,8 +277,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     final String fullName = user?.fullName ?? 'Guest';
     final String initials = _getInitials(fullName);
 
-    final bool hasDatabaseImage =
-        user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    final userImage = user?.userImage?.trim();
+    final bool hasDatabaseImage = userImage != null && userImage.isNotEmpty;
 
     ImageProvider? profileImageProvider;
     if (_selectedImageFile != null) {
@@ -327,7 +287,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
       // 🟢 PEMBARUAN URL DINAMIS STORAGE NGROK
       // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
       final String fullImageUrl =
-          '${ApiClient.serverUrl}/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+          '${ApiClient.serverUrl}/storage/$userImage?v=${DateTime.now().millisecondsSinceEpoch}';
       profileImageProvider = NetworkImage(
         fullImageUrl,
         headers: ApiClient.imageHeaders,
