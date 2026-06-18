@@ -130,13 +130,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<BookingHistoryModel> _mergeBookings(List<BookingHistoryModel> fetched) {
     final merged = <String, BookingHistoryModel>{};
 
-    for (final booking in fetched) {
-      merged[booking.idPayment ?? '-'] = booking;
-    }
+    // latestBooking cuma jadi placeholder kalau API belum punya datanya
+  if (widget.latestBooking != null) {
+    merged[widget.latestBooking!.idPayment ?? '-'] = widget.latestBooking!;
+  }
 
-    if (widget.latestBooking != null) {
-      merged[widget.latestBooking!.idPayment ?? '-'] = widget.latestBooking!;
-    }
+  // data API selalu jadi sumber kebenaran, jadi dipasang TERAKHIR
+  for (final booking in fetched) {
+    merged[booking.idPayment ?? '-'] = booking;
+  }
 
     return merged.values.toList()
       ..sort((a, b) => b.checkIn.compareTo(a.checkIn));
