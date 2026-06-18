@@ -44,10 +44,11 @@ class HomeProvider extends ChangeNotifier {
       final endpoint = '/hotels${_buildQueryString()}';
       final response = await _apiClient.get(endpoint);
       final hotelList = _extractList(response);
-      _hotels = hotelList
+      final hotels = hotelList
           .whereType<Map<String, dynamic>>()
           .map(HotelModel.fromJson)
           .toList();
+      _hotels = _filterHotelsBySearch(hotels);
     } catch (e) {
       _hotels = [];
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -107,5 +108,39 @@ class HomeProvider extends ChangeNotifier {
       return response['data'] as List;
     }
     return const [];
+  }
+
+  List<HotelModel> _filterHotelsBySearch(List<HotelModel> hotels) {
+    final query = _normalizeSearchValue(_searchQuery);
+    if (query.isEmpty) return hotels;
+
+    final hasMatchingCity = hotels.any((hotel) {
+      return _normalizeSearchValue(hotel.kota) == query;
+    });
+
+    if (hasMatchingCity) {
+      return hotels.where((hotel) {
+        return _normalizeSearchValue(hotel.kota) == query;
+      }).toList();
+    }
+
+    return hotels.where((hotel) {
+      return [
+        hotel.namaHotel,
+        hotel.alamat,
+        hotel.kota,
+        hotel.deskripsi ?? '',
+        ...hotel.facilityNames,
+      ].any((value) => _normalizeSearchValue(value).contains(query));
+    }).toList();
+  }
+
+  String _normalizeSearchValue(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'\b(kota|kabupaten|indonesia)\b'), '')
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 }

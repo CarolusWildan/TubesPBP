@@ -138,6 +138,27 @@ class _PencarianDaftarHotelScreenState
     }).take(6).toList();
   }
 
+  List<HotelModel> _searchResults(List<HotelModel> hotels, String query) {
+    final normalizedQuery = _normalizeCity(query);
+    if (normalizedQuery.isEmpty) return hotels;
+
+    final cityMatches = hotels.where((hotel) {
+      return _cityMatches(hotel.kota, query);
+    }).toList();
+
+    if (cityMatches.isNotEmpty) return cityMatches;
+
+    return hotels.where((hotel) {
+      return [
+        hotel.namaHotel,
+        hotel.alamat,
+        hotel.kota,
+        hotel.deskripsi ?? '',
+        ...hotel.facilityNames,
+      ].any((value) => _normalizeCity(value).contains(normalizedQuery));
+    }).toList();
+  }
+
   bool _cityMatches(String hotelCity, String currentCity) {
     final hotelValue = _normalizeCity(hotelCity);
     final currentValue = _normalizeCity(currentCity);
@@ -215,6 +236,10 @@ class _PencarianDaftarHotelScreenState
     final isSearching = _searchController.text.trim().isNotEmpty;
     final popularDestinations = _popularDestinations(homeProvider);
     final trendingHotels = _trendingHotelsForCurrentCity(homeProvider.hotels);
+    final searchResults = _searchResults(
+      homeProvider.hotels,
+      _searchController.text,
+    );
 
     return Scaffold(
       backgroundColor: _kBackgroundColor,
@@ -373,7 +398,7 @@ class _PencarianDaftarHotelScreenState
                         );
                       },
                     ),
-                  ] else if (homeProvider.hotels.isEmpty) ...[
+                  ] else if (searchResults.isEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.only(top: 40),
                       child: Center(
@@ -394,7 +419,7 @@ class _PencarianDaftarHotelScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ...homeProvider.hotels.map(
+                    ...searchResults.map(
                       (hotel) => _HotelSearchListItem(
                         hotel: hotel,
                         hotelImage: _hotelImage,

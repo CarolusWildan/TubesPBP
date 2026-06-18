@@ -48,12 +48,13 @@ class GeolocationService {
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 8),
         ),
       );
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
-      );
+      ).timeout(const Duration(seconds: 8));
 
       final city = _cityFromPlacemarks(placemarks);
       if (city == null) {
@@ -73,8 +74,8 @@ class GeolocationService {
   String? _cityFromPlacemarks(List<Placemark> placemarks) {
     for (final placemark in placemarks) {
       final candidates = [
-        placemark.locality,
         placemark.subAdministrativeArea,
+        placemark.locality,
         placemark.administrativeArea,
       ];
 
@@ -91,7 +92,10 @@ class GeolocationService {
     if (value == null) return null;
 
     final cleaned = value
-        .replaceAll(RegExp(r'^(Kota|Kabupaten)\s+', caseSensitive: false), '')
+        .replaceAll(
+          RegExp(r'^(Kota|Kabupaten|Kecamatan)\s+', caseSensitive: false),
+          '',
+        )
         .trim();
 
     if (cleaned.isEmpty) return null;

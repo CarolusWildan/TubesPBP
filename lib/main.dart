@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/local_storage_service.dart';
@@ -9,8 +10,9 @@ import 'features/home/presentation/screens/main_screen.dart';
 import 'features/splash/presentation/screens/get_started_screen.dart';
 import 'shared/network/api_client.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
 
   final localStorageService = LocalStorageService();
   final apiClient = ApiClient(storageService: localStorageService);
