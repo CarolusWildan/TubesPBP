@@ -7,6 +7,7 @@ class ReviewModel {
   final String idHotel;
   final int rating;
   final String? komentar;
+  final List<String> mediaPaths;
   final DateTime? createdAt;
   final UserModel? user;
   final HotelModel? hotel;
@@ -17,6 +18,7 @@ class ReviewModel {
     required this.idHotel,
     required this.rating,
     this.komentar,
+    this.mediaPaths = const [],
     this.createdAt,
     this.user,
     this.hotel,
@@ -29,6 +31,7 @@ class ReviewModel {
       idHotel: json['id_hotel']?.toString() ?? '',
       rating: _toInt(json['rating']),
       komentar: json['komentar']?.toString(),
+      mediaPaths: _parseMediaPaths(json['media'] ?? json['review_media']),
       createdAt: _parseDate(json['created_at']),
       user: json['user'] is Map<String, dynamic>
           ? UserModel.fromJson(json['user'] as Map<String, dynamic>)
@@ -47,6 +50,27 @@ class ReviewModel {
       'rating': rating,
       if (komentar != null) 'komentar': komentar,
     };
+  }
+
+  static List<String> _parseMediaPaths(dynamic value) {
+    if (value is! List) return const [];
+
+    return value
+        .map((item) {
+          if (item is Map<String, dynamic>) {
+            return (item['media_path'] ?? item['path'] ?? item['url'])
+                ?.toString();
+          }
+          if (item is Map) {
+            return (item['media_path'] ?? item['path'] ?? item['url'])
+                ?.toString();
+          }
+          return item?.toString();
+        })
+        .whereType<String>()
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty && path != 'null')
+        .toList();
   }
 
   static int _toInt(dynamic value) {
