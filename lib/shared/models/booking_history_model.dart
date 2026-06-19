@@ -14,6 +14,9 @@ class BookingHistoryModel {
   final String paymentMethod;
   final String reviewStatus;
   final String? userId;
+  final String? reviewId;
+  final int reviewRating;
+  final String? reviewComment;
 
   const BookingHistoryModel({
     required this.idPayment,
@@ -29,6 +32,9 @@ class BookingHistoryModel {
     this.paymentMethod = 'QRIS',
     this.reviewStatus = 'Not Reviewed',
     this.userId,
+    this.reviewId,
+    this.reviewRating = 0,
+    this.reviewComment,
   });
 
   BookingHistoryModel copyWith({
@@ -45,6 +51,9 @@ class BookingHistoryModel {
     String? paymentMethod,
     String? reviewStatus,
     String? userId,
+    String? reviewId,
+    int? reviewRating,
+    String? reviewComment,
   }) {
     return BookingHistoryModel(
       idPayment: idPayment ?? this.idPayment,
@@ -60,6 +69,9 @@ class BookingHistoryModel {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       reviewStatus: reviewStatus ?? this.reviewStatus,
       userId: userId ?? this.userId,
+      reviewId: reviewId ?? this.reviewId,
+      reviewRating: reviewRating ?? this.reviewRating,
+      reviewComment: reviewComment ?? this.reviewComment,
     );
   }
 
@@ -87,6 +99,7 @@ class BookingHistoryModel {
           ); // fallback jika berupa Map mentah
 
     final reviews = _asList(json['reviews']);
+    final review = reviews.isNotEmpty ? _asMap(reviews.first) : null;
 
     final checkIn =
         _parseDate(json['check_in'] ?? json['checkIn']) ?? DateTime.now();
@@ -149,6 +162,12 @@ class BookingHistoryModel {
       ),
       reviewStatus: reviews.isNotEmpty ? 'Reviewed' : 'Not Reviewed',
       userId: _firstNullableText([json['id_user'], json['user_id']]),
+      reviewId: _firstNullableText([review?['id_review'], review?['id']]),
+      reviewRating: _toInt(review?['rating']),
+      reviewComment: _firstNullableText([
+        review?['komentar'],
+        review?['comment'],
+      ]),
     );
   }
 
@@ -165,6 +184,7 @@ class BookingHistoryModel {
 
   bool get isPending => paymentStatus.toLowerCase().contains('pending');
   bool get isSuccess => paymentStatus.toLowerCase().contains('success');
+  bool get isCancel => paymentStatus.toLowerCase().contains('cancel');
   bool get isReviewed => reviewStatus.trim().toLowerCase() == 'reviewed';
   bool get needsReview => isSuccess && !isReviewed;
 
@@ -207,6 +227,12 @@ class BookingHistoryModel {
   static double _toDouble(dynamic value) {
     if (value is num) return value.toDouble();
     return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   static String _formatPaymentStatus(dynamic value) {

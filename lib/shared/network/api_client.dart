@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io'; // 🟢 WAJIB DITAMBAHKAN UNTUK MENGENALI DATA 'File'
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import '../../core/services/local_storage_service.dart';
 
@@ -7,9 +8,14 @@ class ApiClient {
   ApiClient({LocalStorageService? storageService})
     : _storageService = storageService;
 
-  // 1. GANTI DENGAN URL NGROK KAMU (Tanpa garis miring di akhir)
-  static const String baseUrl =
-      'https://mortality-emote-creasing.ngrok-free.dev/api';
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL']?.trim();
+    if (url == null || url.isEmpty) {
+      throw Exception('API_BASE_URL belum diatur di file .env');
+    }
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+
   static String get serverUrl => baseUrl.replaceFirst('/api', '');
   static const Map<String, String> imageHeaders = {
     'ngrok-skip-browser-warning': 'true',
@@ -25,7 +31,7 @@ class ApiClient {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'ngrok-skip-browser-warning': 'true', 
+      'ngrok-skip-browser-warning': 'true',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -69,6 +75,47 @@ class ApiClient {
     return _processResponse(response, unwrapData: unwrapData);
   }
 
+  Future<dynamic> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+
+    http.Response response;
+    try {
+      response = await http.put(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _buildHeaders(token),
+        body: json.encode(body),
+      );
+    } catch (e) {
+      throw Exception(
+        'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+      );
+    }
+
+    return _processResponse(response, unwrapData: unwrapData);
+  }
+
+  Future<dynamic> delete(String endpoint, {bool unwrapData = true}) async {
+    final token = await _getToken();
+
+    http.Response response;
+    try {
+      response = await http.delete(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _buildHeaders(token),
+      );
+    } catch (e) {
+      throw Exception(
+        'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+      );
+    }
+
+    return _processResponse(response, unwrapData: unwrapData);
+  }
+
   // --- 🟢 FUNGSI BARU UNTUK UPLOAD GAMBAR (MULTIPART) 🟢 ---
   Future<dynamic> postMultipart(
     String endpoint,
@@ -78,10 +125,13 @@ class ApiClient {
     bool unwrapData = true,
   }) async {
     final token = await _getToken();
-    
+
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
-      
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+
       // Header untuk autentikasi (Tanpa Content-Type karena diatur otomatis oleh MultipartRequest)
       request.headers.addAll({
         'Accept': 'application/json',
@@ -95,7 +145,7 @@ class ApiClient {
       // 2. Masukkan data file (Gambar Profil) jika ada
       if (file != null) {
         request.files.add(
-          await http.MultipartFile.fromPath(fileField, file.path)
+          await http.MultipartFile.fromPath(fileField, file.path),
         );
       }
 
@@ -105,7 +155,6 @@ class ApiClient {
 
       // 4. Proses balasan menggunakan logika yang sama
       return _processResponse(response, unwrapData: unwrapData);
-      
     } catch (e) {
       throw Exception('Gagal mengirim data. Periksa koneksi internet Anda.');
     }
@@ -119,10 +168,13 @@ class ApiClient {
     bool unwrapData = true,
   }) async {
     final token = await _getToken();
-    
+
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
-      
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+
       request.headers.addAll({
         'Accept': 'application/json',
         'ngrok-skip-browser-warning': 'true',
@@ -135,7 +187,7 @@ class ApiClient {
       if (files != null && files.isNotEmpty) {
         for (var file in files) {
           request.files.add(
-            await http.MultipartFile.fromPath(fileField, file.path)
+            await http.MultipartFile.fromPath(fileField, file.path),
           );
         }
       }
@@ -146,6 +198,45 @@ class ApiClient {
       return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception('Gagal mengupload review: $e');
+    }
+  }
+
+  Future<dynamic> putMultipartMultiple(
+    String endpoint,
+    Map<String, String> fields, {
+    List<File>? files,
+    String fileField = 'media[]',
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+
+      request.fields.addAll({...fields, '_method': 'PUT'});
+
+      if (files != null && files.isNotEmpty) {
+        for (var file in files) {
+          request.files.add(
+            await http.MultipartFile.fromPath(fileField, file.path),
+          );
+        }
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _processResponse(response, unwrapData: unwrapData);
+    } catch (e) {
+      throw Exception('Gagal mengupdate review: $e');
     }
   }
 

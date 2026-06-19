@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/services/geolocation_service.dart';
 import '../../../../core/services/speech_service.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/network/api_client.dart';
@@ -26,9 +27,13 @@ class PencarianDaftarHotelScreen extends StatefulWidget {
 class _PencarianDaftarHotelScreenState
     extends State<PencarianDaftarHotelScreen> {
   late final TextEditingController _searchController;
+  final GeolocationService _geolocationService = GeolocationService();
   final SpeechService _speechService = SpeechService();
 
   bool _isListening = false;
+  bool _isLoadingLocation = false;
+  String? _currentCity;
+  String? _locationMessage;
 
   @override
   void initState() {
@@ -50,6 +55,7 @@ class _PencarianDaftarHotelScreenState
       if (homeProvider.hotels.isEmpty) {
         homeProvider.loadHomeData();
       }
+      _loadCurrentCity();
     });
   }
 
@@ -98,6 +104,91 @@ class _PencarianDaftarHotelScreenState
     }
   }
 
+  Future<void> _loadCurrentCity() async {
+    setState(() {
+      _isLoadingLocation = true;
+      _locationMessage = null;
+    });
+
+    final result = await _geolocationService.resolveCurrentCity();
+
+    if (!mounted) return;
+    setState(() {
+      _isLoadingLocation = false;
+      _currentCity = result.city;
+      _locationMessage = result.message;
+    });
+  }
+
+  void _submitSearch(String value) {
+    final query = value.trim();
+    if (query.isEmpty) {
+      context.read<HomeProvider>().clearSearch();
+      return;
+    }
+    context.read<HomeProvider>().updateSearchQuery(query);
+  }
+
+  List<HotelModel> _trendingHotelsForCurrentCity(List<HotelModel> hotels) {
+    final city = _currentCity;
+    if (city == null || city.trim().isEmpty) return const [];
+
+    return hotels.where((hotel) {
+      return _cityMatches(hotel.kota, city);
+    }).take(6).toList();
+  }
+
+  List<HotelModel> _searchResults(List<HotelModel> hotels, String query) {
+    final normalizedQuery = _normalizeCity(query);
+    if (normalizedQuery.isEmpty) return hotels;
+
+    final cityMatches = hotels.where((hotel) {
+      return _cityMatches(hotel.kota, query);
+    }).toList();
+
+    if (cityMatches.isNotEmpty) return cityMatches;
+
+    return hotels.where((hotel) {
+      return [
+        hotel.namaHotel,
+        hotel.alamat,
+        hotel.kota,
+        hotel.deskripsi ?? '',
+        ...hotel.facilityNames,
+      ].any((value) => _normalizeCity(value).contains(normalizedQuery));
+    }).toList();
+  }
+
+  bool _cityMatches(String hotelCity, String currentCity) {
+    final hotelValue = _normalizeCity(hotelCity);
+    final currentValue = _normalizeCity(currentCity);
+    if (hotelValue.isEmpty || currentValue.isEmpty) return false;
+    if (hotelValue.contains(currentValue) || currentValue.contains(hotelValue)) {
+      return true;
+    }
+
+    final hotelAliases = _cityAliases(hotelValue);
+    final currentAliases = _cityAliases(currentValue);
+    return hotelAliases.any(currentAliases.contains);
+  }
+
+  Set<String> _cityAliases(String city) {
+    final aliases = <String>{city};
+    if (city.contains('yogyakarta') || city.contains('jogja')) {
+      aliases.addAll({'yogyakarta', 'jogja'});
+    }
+    return aliases;
+  }
+
+  String _normalizeCity(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'\b(kota|kabupaten|indonesia)\b'), '')
+        .replaceAll(RegExp(r'[^a-z\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
   String? _resolveImageUrl(String? value) {
     if (value == null || value.trim().isEmpty) return null;
 
@@ -142,11 +233,13 @@ class _PencarianDaftarHotelScreenState
   @override
   Widget build(BuildContext context) {
     final homeProvider = context.watch<HomeProvider>();
-    final isPriceSort = homeProvider.sortBy == HotelSortOption.price;
-    final isRatingSort = homeProvider.sortBy == HotelSortOption.rating;
-    final sortIcon = homeProvider.sortAscending
-        ? Icons.keyboard_arrow_up
-        : Icons.keyboard_arrow_down;
+    final isSearching = _searchController.text.trim().isNotEmpty;
+    final popularDestinations = _popularDestinations(homeProvider);
+    final trendingHotels = _trendingHotelsForCurrentCity(homeProvider.hotels);
+    final searchResults = _searchResults(
+      homeProvider.hotels,
+      _searchController.text,
+    );
 
     return Scaffold(
       backgroundColor: _kBackgroundColor,
@@ -163,7 +256,7 @@ class _PencarianDaftarHotelScreenState
                 borderRadius: BorderRadius.zero,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -177,54 +270,44 @@ class _PencarianDaftarHotelScreenState
                       InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 44,
+                        child: const SizedBox(
+                          width: 40,
                           height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.arrow_back,
-                            color: Colors.black87,
-                          ),
+                          child: Icon(Icons.arrow_back, color: Colors.black87),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Container(
-                          height: 56,
+                          height: 48,
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: const Color(0xFFE5E5E5)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFD9D9D9)),
                           ),
                           child: Row(
                             children: [
-                              const SizedBox(width: 18),
+                              const SizedBox(width: 12),
                               const Icon(
                                 Icons.search,
                                 color: _kPrimaryColor,
-                                size: 24,
+                                size: 22,
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: TextField(
                                   controller: _searchController,
                                   autofocus: true,
                                   textInputAction: TextInputAction.search,
-                                  onSubmitted: (value) {
-                                    homeProvider.updateSearchQuery(value);
+                                  onChanged: (value) {
+                                    if (value.trim().isEmpty) {
+                                      homeProvider.clearSearch();
+                                    }
+                                    setState(() {});
                                   },
+                                  onSubmitted: _submitSearch,
                                   decoration: const InputDecoration(
-                                    hintText: 'Bali, Indonesia',
+                                    hintText: 'Where to?',
                                     hintStyle: TextStyle(
                                       color: Color(0xFF9E9E9E),
                                       fontSize: 15,
@@ -242,6 +325,7 @@ class _PencarianDaftarHotelScreenState
                                   onPressed: () {
                                     _searchController.clear();
                                     homeProvider.clearSearch();
+                                    setState(() {});
                                   },
                                 ),
                               IconButton(
@@ -262,100 +346,12 @@ class _PencarianDaftarHotelScreenState
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Filters by:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: isPriceSort
-                                ? const Color(0xFFE8F5E9)
-                                : Colors.white,
-                            foregroundColor: isPriceSort
-                                ? _kPrimaryColor
-                                : Colors.black87,
-                            side: BorderSide(
-                              color: isPriceSort
-                                  ? _kPrimaryColor
-                                  : const Color(0xFFD9D9D9),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          onPressed: () => homeProvider.toggleSortOption(
-                            HotelSortOption.price,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('Price'),
-                              const SizedBox(width: 8),
-                              Icon(
-                                isPriceSort
-                                    ? sortIcon
-                                    : Icons.keyboard_arrow_down,
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: isRatingSort
-                                ? const Color(0xFFE8F5E9)
-                                : Colors.white,
-                            foregroundColor: isRatingSort
-                                ? _kPrimaryColor
-                                : Colors.black87,
-                            side: BorderSide(
-                              color: isRatingSort
-                                  ? _kPrimaryColor
-                                  : const Color(0xFFD9D9D9),
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                          onPressed: () => homeProvider.toggleSortOption(
-                            HotelSortOption.rating,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('Rating'),
-                              const SizedBox(width: 8),
-                              Icon(
-                                isRatingSort
-                                    ? sortIcon
-                                    : Icons.keyboard_arrow_down,
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -377,7 +373,32 @@ class _PencarianDaftarHotelScreenState
                         ),
                       ),
                     ),
-                  ] else if (homeProvider.hotels.isEmpty) ...[
+                  ] else if (!isSearching) ...[
+                    _DiscoverySearchContent(
+                      popularDestinations: popularDestinations,
+                      trendingHotels: trendingHotels,
+                      currentCity: _currentCity,
+                      isLoadingLocation: _isLoadingLocation,
+                      locationMessage: _locationMessage,
+                      hotelImage: _hotelImage,
+                      onDestinationTap: (city) {
+                        _searchController.text = city;
+                        _searchController.selection = TextSelection.collapsed(
+                          offset: _searchController.text.length,
+                        );
+                        _submitSearch(city);
+                        setState(() {});
+                      },
+                      onHotelTap: (hotel) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DetailKamarScreen(hotel: hotel),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else if (searchResults.isEmpty) ...[
                     const Padding(
                       padding: EdgeInsets.only(top: 40),
                       child: Center(
@@ -398,7 +419,7 @@ class _PencarianDaftarHotelScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ...homeProvider.hotels.map(
+                    ...searchResults.map(
                       (hotel) => _HotelSearchListItem(
                         hotel: hotel,
                         hotelImage: _hotelImage,
@@ -408,6 +429,285 @@ class _PencarianDaftarHotelScreenState
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_PopularDestination> _popularDestinations(HomeProvider homeProvider) {
+    const fallback = [
+      _PopularDestination(
+        city: 'Bali',
+        country: 'Indonesia',
+        subtitle: 'Island - Beaches & Culture',
+      ),
+      _PopularDestination(
+        city: 'Yogyakarta',
+        country: 'Indonesia',
+        subtitle: 'City - Heritage & Culinary',
+      ),
+      _PopularDestination(
+        city: 'Bandung',
+        country: 'Indonesia',
+        subtitle: 'City - Mountains & Shopping',
+      ),
+    ];
+
+    final cities = homeProvider.destinationCities.take(3).toList();
+    if (cities.isEmpty) return fallback;
+
+    return cities.map((city) {
+      final matchedFallback = fallback.where((item) {
+        return _cityMatches(item.city, city);
+      }).firstOrNull;
+
+      return _PopularDestination(
+        city: city,
+        country: 'Indonesia',
+        subtitle: matchedFallback?.subtitle ?? 'City - Hotels & Stays',
+      );
+    }).toList();
+  }
+}
+
+class _PopularDestination {
+  const _PopularDestination({
+    required this.city,
+    required this.country,
+    required this.subtitle,
+  });
+
+  final String city;
+  final String country;
+  final String subtitle;
+}
+
+class _DiscoverySearchContent extends StatelessWidget {
+  const _DiscoverySearchContent({
+    required this.popularDestinations,
+    required this.trendingHotels,
+    required this.currentCity,
+    required this.isLoadingLocation,
+    required this.locationMessage,
+    required this.hotelImage,
+    required this.onDestinationTap,
+    required this.onHotelTap,
+  });
+
+  final List<_PopularDestination> popularDestinations;
+  final List<HotelModel> trendingHotels;
+  final String? currentCity;
+  final bool isLoadingLocation;
+  final String? locationMessage;
+  final Widget Function(String? imageUrl, {double? width, double? height})
+  hotelImage;
+  final ValueChanged<String> onDestinationTap;
+  final ValueChanged<HotelModel> onHotelTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Popular Destinations',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...popularDestinations.map(
+          (destination) => _PopularDestinationTile(
+            destination: destination,
+            onTap: () => onDestinationTap(destination.city),
+          ),
+        ),
+        const SizedBox(height: 34),
+        const Text(
+          'Trending Hotels',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (isLoadingLocation)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _kPrimaryColor,
+                ),
+              ),
+            ),
+          )
+        else if (trendingHotels.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              locationMessage ??
+                  (currentCity == null
+                      ? 'Izinkan lokasi untuk menampilkan hotel sesuai kota Anda.'
+                      : 'Belum ada hotel trending di $currentCity.'),
+              style: const TextStyle(fontSize: 13, color: Colors.black54),
+            ),
+          )
+        else
+          ...trendingHotels.map(
+            (hotel) => _TrendingHotelTile(
+              hotel: hotel,
+              hotelImage: hotelImage,
+              onTap: () => onHotelTap(hotel),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _PopularDestinationTile extends StatelessWidget {
+  const _PopularDestinationTile({
+    required this.destination,
+    required this.onTap,
+  });
+
+  final _PopularDestination destination;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 54,
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F5F6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: _kPrimaryColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.location_on,
+                size: 20,
+                color: _kPrimaryColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${destination.city}, ${destination.country}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    destination.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7B8490),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.black87),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendingHotelTile extends StatelessWidget {
+  const _TrendingHotelTile({
+    required this.hotel,
+    required this.hotelImage,
+    required this.onTap,
+  });
+
+  final HotelModel hotel;
+  final Widget Function(String? imageUrl, {double? width, double? height})
+  hotelImage;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 54,
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F5F6),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: hotelImage(hotel.hotelImage, width: 38, height: 38),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hotel.namaHotel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${hotel.kota}, Indonesia',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7B8490),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.open_in_new, size: 20, color: Colors.black87),
           ],
         ),
       ),
@@ -505,7 +805,7 @@ class _HotelSearchListItem extends StatelessWidget {
                             horizontal: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: _kPrimaryColor.withOpacity(0.14),
+                            color: _kPrimaryColor.withValues(alpha: 0.14),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(

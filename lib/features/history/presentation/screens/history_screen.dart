@@ -13,8 +13,9 @@ typedef HistoryBookingItem = BookingHistoryModel;
 
 class HistoryScreen extends StatefulWidget {
   final BookingHistoryModel? latestBooking;
+  final String? initialFilter;
 
-  const HistoryScreen({super.key, this.latestBooking});
+  const HistoryScreen({super.key, this.latestBooking, this.initialFilter});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -30,6 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _selectedFilter = widget.initialFilter ?? _selectedFilter;
     _loadHistory();
   }
 
@@ -128,10 +130,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<BookingHistoryModel> _mergeBookings(List<BookingHistoryModel> fetched) {
     final merged = <String, BookingHistoryModel>{};
 
+    // latestBooking cuma jadi placeholder kalau API belum punya datanya
     if (widget.latestBooking != null) {
       merged[widget.latestBooking!.idPayment ?? '-'] = widget.latestBooking!;
     }
 
+    // data API selalu jadi sumber kebenaran, jadi dipasang TERAKHIR
     for (final booking in fetched) {
       merged[booking.idPayment ?? '-'] = booking;
     }
@@ -209,7 +213,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                   ),
                                 );
 
-                                if (reviewed == true && mounted) {
+                                if (reviewed != null && mounted) {
                                   setState(() {
                                     _bookings = _bookings.map((item) {
                                       final sameBooking =
@@ -221,7 +225,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
                                       if (sameBooking || samePayment) {
                                         return item.copyWith(
-                                          reviewStatus: 'Reviewed',
+                                          reviewStatus: reviewed
+                                              ? 'Reviewed'
+                                              : 'Not Reviewed',
+                                          reviewId: reviewed ? null : '',
+                                          reviewRating: reviewed ? null : 0,
+                                          reviewComment: reviewed ? null : '',
                                         );
                                       }
 

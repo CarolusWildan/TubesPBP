@@ -10,6 +10,7 @@ import '../../../../shared/widgets/addon_section.dart';
 import '../../../../shared/widgets/guest_info.dart';
 import '../../../../shared/widgets/payment_detail_section.dart';
 import '../../../../shared/widgets/payment_method_section.dart';
+import '../../../../shared/widgets/confirmation_dialog.dart';
 import '../../../hotel/presentation/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
 import 'payment_instruction_screen.dart';
@@ -99,7 +100,9 @@ class BookingSummaryScreen extends StatelessWidget {
                 hotelName: hotel?.namaHotel ?? 'Hotel belum dipilih',
                 roomType: _roomSubtitle(hotel),
                 rating: hotel?.rating ?? 0,
-                imageUrl: _resolveImageUrl(room?.roomImage ?? hotel?.hotelImage),
+                imageUrl: _resolveImageUrl(
+                  room?.roomImage ?? hotel?.hotelImage,
+                ),
               ),
               const SizedBox(height: 12),
               Consumer<BookingSummaryProvider>(
@@ -236,6 +239,17 @@ class BookingSummaryScreen extends StatelessWidget {
   ) async {
     try {
       final selectedPaymentMethod = provider.selectedPaymentMethod;
+      final shouldContinue = await showActionConfirmationDialog(
+        context: context,
+        title: 'Confirmation Payment',
+        message:
+            'Are you sure you want to continue with ${selectedPaymentMethod.name} payment?',
+        confirmText: 'Continue Payment',
+        cancelText: 'Cancel',
+      );
+
+      if (!shouldContinue || !context.mounted) return;
+
       await provider.submitBookingPayment();
 
       if (!context.mounted) return;

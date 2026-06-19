@@ -6,8 +6,14 @@ import '../../../profile/presentation/screens/profile_screen.dart';
 class MainScreen extends StatefulWidget {
   final int initialIndex;
   final HistoryBookingItem? latestBooking;
+  final String? initialHistoryFilter;
 
-  const MainScreen({super.key, this.initialIndex = 0, this.latestBooking});
+  const MainScreen({
+    super.key,
+    this.initialIndex = 0,
+    this.latestBooking,
+    this.initialHistoryFilter,
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -25,7 +31,10 @@ class _MainScreenState extends State<MainScreen> {
   // Daftar halaman untuk navigasi bawah
   List<Widget> get _pages => [
     const HomeScreen(),
-    HistoryScreen(latestBooking: widget.latestBooking),
+    HistoryScreen(
+      latestBooking: widget.latestBooking,
+      initialFilter: widget.initialHistoryFilter,
+    ),
     const ProfileScreen(),
   ];
 

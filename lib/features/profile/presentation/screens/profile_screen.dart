@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
-    
+
     final displayName = user?.fullName.trim().isNotEmpty == true
         ? user!.fullName
         : 'User';
@@ -38,7 +38,8 @@ class ProfileScreen extends StatelessWidget {
         : 'user@gmail.com';
 
     // --- Logika Penentuan Gambar Profile ---
-    final bool hasDatabaseImage = user?.userImage != null && user!.userImage!.trim().isNotEmpty;
+    final bool hasDatabaseImage =
+        user?.userImage != null && user!.userImage!.trim().isNotEmpty;
     final String initials = _getInitials(displayName);
 
     ImageProvider? profileImageProvider;
@@ -84,7 +85,8 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         child: CircleAvatar(
                           radius: 45,
-                          backgroundColor: Colors.white, // Background putih jika gambar kosong
+                          backgroundColor: Colors
+                              .white, // Background putih jika gambar kosong
                           backgroundImage: profileImageProvider,
                           child: profileImageProvider == null
                               ? Text(
@@ -198,19 +200,103 @@ class ProfileScreen extends StatelessWidget {
     final shouldLogout = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Log Out'),
-          content: const Text('Are you sure you want to log out?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min, // Agar tinggi dialog menyesuaikan isi
+              children: [
+                // 1. Ikon Logout Custom (Dibalik agar panahnya ke kiri)
+                Transform.flip(
+                  flipX: true,
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    size: 64,
+                    color: Color(0xFFEF4444), // Warna merah sesuai gambar
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 2. Judul
+                const Text(
+                  'Log Out',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 3. Teks Deskripsi
+                const Text(
+                  'Are you sure you want to log out? You will\nneed to enter your credentials to access your\naccount again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                    height: 1.4, // Memberikan jarak antar baris teks
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // 4. Tombol Yes, Log Out (Merah)
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text(
+                      'Yes, Log Out',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // 5. Tombol Cancel (Abu-abu)
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      foregroundColor: Colors.black87,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Log Out', style: TextStyle(color: _dangerRed)),
-            ),
-          ],
+          ),
         );
       },
     );
@@ -220,7 +306,7 @@ class ProfileScreen extends StatelessWidget {
     await context.read<AuthProvider>().logout();
     if (!context.mounted) return;
 
-    // 2. UBAH NAVIGASI: Arahkan ke LoginScreen, bukan GetStartedScreen
+    // 2. UBAH NAVIGASI: Arahkan ke LoginScreen
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,

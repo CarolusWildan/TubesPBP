@@ -39,6 +39,7 @@ class HistoryBookingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isReviewed = booking.isReviewed;
+    final showReviewStatus = !_isCancel;
     final statusBackground = _isPending
         ? const Color(0xFFFFF0DF)
         : _isCancel
@@ -129,23 +130,25 @@ class HistoryBookingCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 36),
-                      child: StatusPill(
-                        label: booking.reviewStatus,
-                        backgroundColor: isReviewed
-                            ? const Color(0xFFE7F8EE)
-                            : const Color(0xFFFFF0DF),
-                        textColor: isReviewed
-                            ? const Color(0xFF0EA554)
-                            : const Color(0xFFFF6B3A),
-                        icon: isReviewed ? Icons.check_circle : null,
+                  if (showReviewStatus) ...[
+                    const SizedBox(width: 8),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 36),
+                        child: StatusPill(
+                          label: booking.reviewStatus,
+                          backgroundColor: isReviewed
+                              ? const Color(0xFFE7F8EE)
+                              : const Color(0xFFFFF0DF),
+                          textColor: isReviewed
+                              ? const Color(0xFF0EA554)
+                              : const Color(0xFFFF6B3A),
+                          icon: isReviewed ? Icons.check_circle : null,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],
