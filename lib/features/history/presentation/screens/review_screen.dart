@@ -26,6 +26,21 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   final ImagePicker _picker = ImagePicker();
 
+  bool get _isEditing => widget.booking.reviewId?.isNotEmpty == true;
+
+  @override
+  void initState() {
+    super.initState();
+    _rating = widget.booking.reviewRating;
+    _reviewController.text = widget.booking.reviewComment ?? '';
+  }
+
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
+  }
+
   String _formatDateRange(DateTime start, DateTime end) {
     final dateFormat = DateFormat('d MMM');
     final yearFormat = DateFormat('yyyy');
@@ -125,13 +140,27 @@ class _ReviewScreenState extends State<ReviewScreen> {
       final storageService = LocalStorageService();
       final apiClient = ApiClient(storageService: storageService);
 
-      await apiClient.postMultipartMultiple('/reviews', {
+      final fields = {
         'id_user': widget.booking.userId ?? '',
         'id_booking': widget.booking.bookingId ?? '',
         'id_hotel': widget.booking.hotelId ?? 'HTL001',
         'rating': _rating.toString(),
         'komentar': _reviewController.text,
-      }, files: _selectedMedias);
+      };
+
+      if (_isEditing) {
+        await apiClient.putMultipartMultiple(
+          '/reviews/${widget.booking.reviewId}',
+          fields,
+          files: _selectedMedias,
+        );
+      } else {
+        await apiClient.postMultipartMultiple(
+          '/reviews',
+          fields,
+          files: _selectedMedias,
+        );
+      }
 
       if (!mounted) return;
       _showSuccessDialog();
@@ -150,7 +179,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
     showSuccessConfirmationDialog(
       context: context,
       title: 'Success',
-      message: 'Your review has been saved successfully',
+      message: _isEditing
+          ? 'Your review has been updated successfully'
+          : 'Your review has been saved successfully',
       buttonText: 'Continue',
       onPressed: () {
         Navigator.pop(context);
@@ -187,7 +218,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    widget.booking.hotelName,
+                    _isEditing ? 'Update Review' : widget.booking.hotelName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -515,7 +546,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                   ),
                                 )
                               : Text(
-                                  'Submit Review',
+                                  _isEditing
+                                      ? 'Update Review'
+                                      : 'Submit Review',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 14,
