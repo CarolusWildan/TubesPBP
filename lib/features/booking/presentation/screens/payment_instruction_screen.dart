@@ -98,7 +98,7 @@ class _PaymentInstructionScreenState extends State<PaymentInstructionScreen> {
 
     final body = <String, dynamic>{};
     if (metodePembayaran != null) {
-      body['metode_pembayaran'] = metodePembayaran;
+      body['metode_pembayaran'] = _backendPaymentMethod(metodePembayaran);
     }
     if (statusPembayaran != null) {
       body['status_pembayaran'] = statusPembayaran;
@@ -106,6 +106,11 @@ class _PaymentInstructionScreenState extends State<PaymentInstructionScreen> {
 
     final apiClient = context.read<ApiClient>();
     await apiClient.put('/payments/${widget.paymentId}', body);
+  }
+
+  String _backendPaymentMethod(String methodId) {
+    if (methodId == 'qris') return 'virtual_account';
+    return methodId;
   }
 
   Future<void> _selectPaymentMethod(_PaymentOption option) async {

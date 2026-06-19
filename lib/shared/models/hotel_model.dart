@@ -49,7 +49,13 @@ class HotelModel {
       rating: _toDouble(json['rating']),
       email: json['email']?.toString(),
       noHp: json['no_hp']?.toString(),
-      hotelImage: json['hotel_image']?.toString(),
+      hotelImage:
+          (json['hotel_image'] ??
+                  json['image_url'] ??
+                  json['image'] ??
+                  json['foto'] ??
+                  json['photo'])
+              ?.toString(),
       minPrice: _toDouble(json['min_price']),
       createdAt: _parseDate(json['created_at']),
       updatedAt: _parseDate(json['updated_at']),

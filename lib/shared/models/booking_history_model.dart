@@ -1,4 +1,4 @@
-import '../network/api_client.dart';
+import '../utils/image_url_resolver.dart';
 
 class BookingHistoryModel {
   final String? idPayment;
@@ -138,10 +138,17 @@ class BookingHistoryModel {
       ], fallback: 'Booking'),
       imageUrl: _resolveImageUrl(
         _firstNullableText([
+          room?['room_image'],
+          room?['image_url'],
+          room?['image'],
           hotel?['hotel_image'],
           hotel?['image_url'],
           hotel?['image'],
+          firstDetail?['room_image'],
+          firstDetail?['image_url'],
+          firstDetail?['image'],
           json['hotel_image'],
+          json['room_image'],
           json['image_url'],
           json['image'],
         ]),
@@ -253,6 +260,7 @@ class BookingHistoryModel {
   static String _formatPaymentMethod(dynamic value) {
     final method = value?.toString().trim();
     if (method == null || method.isEmpty || method == 'null') return 'QRIS';
+    if (method.toLowerCase() == 'virtual_account') return 'QRIS';
     return method
         .split(RegExp(r'[_\s-]+'))
         .where((part) => part.isNotEmpty)
@@ -265,19 +273,6 @@ class BookingHistoryModel {
   }
 
   static String _resolveImageUrl(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400';
-    }
-
-    final imagePath = value.trim().replaceAll('\\', '/');
-    final uri = Uri.tryParse(imagePath);
-    if (uri != null && uri.hasScheme) return imagePath;
-
-    final serverUrl = ApiClient.serverUrl;
-    if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
-
-    // Hilangkan prefix storage/ jika di database sudah tersimpan dengan kata 'storage/'
-    if (imagePath.startsWith('storage/')) return '$serverUrl/$imagePath';
-    return '$serverUrl/storage/$imagePath';
+    return resolveImageUrl(value) ?? fallbackHotelImageUrl();
   }
 }
