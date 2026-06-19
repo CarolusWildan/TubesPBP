@@ -86,7 +86,48 @@ class HistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  void _cancelBooking(BuildContext context) {
+  Future<void> _cancelBooking(BuildContext context) async {
+    final confirmed = await showActionConfirmationDialog(
+      context: context,
+      title: 'Cancel Booking',
+      message: 'Are you sure you want to cancel this booking?',
+      confirmText: 'Cancel Booking',
+      cancelText: 'Back',
+    );
+
+    if (!confirmed || !context.mounted) return;
+
+    final apiClient = context.read<ApiClient>();
+
+    try {
+      if (booking.idPayment != null && booking.idPayment!.isNotEmpty) {
+        await _updatePaymentStatus(apiClient, 'cancel');
+      } else if (booking.bookingId == null || booking.bookingId!.isEmpty) {
+        throw Exception('ID payment atau booking tidak ditemukan.');
+      }
+
+      if (booking.bookingId != null && booking.bookingId!.isNotEmpty) {
+        try {
+          await apiClient.put('/bookings/${booking.bookingId}', {
+            'status': 'cancel',
+          });
+        } catch (e) {
+          debugPrint('Gagal update status booking: $e');
+        }
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
     final cancelledBooking = booking.copyWith(
       paymentStatus: 'Payment Cancel',
       reviewStatus: '',
@@ -103,6 +144,19 @@ class HistoryDetailScreen extends StatelessWidget {
       ),
       (route) => false,
     );
+  }
+
+  Future<void> _updatePaymentStatus(ApiClient apiClient, String status) async {
+    final paymentId = booking.idPayment;
+    if (paymentId == null || paymentId.isEmpty) return;
+
+    try {
+      await apiClient.put('/payments/$paymentId', {
+        'status_pembayaran': status,
+      });
+    } catch (_) {
+      await apiClient.put('/payments/$paymentId', {'status': status});
+    }
   }
 
   Future<void> _deleteReview(BuildContext context) async {

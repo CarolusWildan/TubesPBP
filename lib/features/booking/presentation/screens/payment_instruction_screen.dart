@@ -91,12 +91,15 @@ class _PaymentInstructionScreenState extends State<PaymentInstructionScreen> {
   }
 
   Future<void> _updatePayment({
-    required String metodePembayaran,
+    String? metodePembayaran,
     String? statusPembayaran,
   }) async {
     if (widget.paymentId == null || widget.paymentId!.isEmpty) return;
 
-    final body = <String, dynamic>{'metode_pembayaran': metodePembayaran};
+    final body = <String, dynamic>{};
+    if (metodePembayaran != null) {
+      body['metode_pembayaran'] = metodePembayaran;
+    }
     if (statusPembayaran != null) {
       body['status_pembayaran'] = statusPembayaran;
     }
@@ -138,10 +141,7 @@ class _PaymentInstructionScreenState extends State<PaymentInstructionScreen> {
     setState(() => _isUpdatingPayment = true);
 
     try {
-      await _updatePayment(
-        metodePembayaran: _paymentMethodId,
-        statusPembayaran: 'success',
-      );
+      await _updatePayment(statusPembayaran: 'success');
 
       if (!mounted) return;
       showSuccessConfirmationDialog(
