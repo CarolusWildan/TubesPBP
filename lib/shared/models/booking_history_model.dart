@@ -1,4 +1,4 @@
-import '../network/api_client.dart';
+import '../utils/image_url_resolver.dart';
 
 class BookingHistoryModel {
   final String? idPayment;
@@ -14,6 +14,9 @@ class BookingHistoryModel {
   final String paymentMethod;
   final String reviewStatus;
   final String? userId;
+  final String? reviewId;
+  final int reviewRating;
+  final String? reviewComment;
 
   const BookingHistoryModel({
     required this.idPayment,
@@ -29,6 +32,9 @@ class BookingHistoryModel {
     this.paymentMethod = 'QRIS',
     this.reviewStatus = 'Not Reviewed',
     this.userId,
+    this.reviewId,
+    this.reviewRating = 0,
+    this.reviewComment,
   });
 
   BookingHistoryModel copyWith({
@@ -45,6 +51,9 @@ class BookingHistoryModel {
     String? paymentMethod,
     String? reviewStatus,
     String? userId,
+    String? reviewId,
+    int? reviewRating,
+    String? reviewComment,
   }) {
     return BookingHistoryModel(
       idPayment: idPayment ?? this.idPayment,
@@ -60,6 +69,9 @@ class BookingHistoryModel {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       reviewStatus: reviewStatus ?? this.reviewStatus,
       userId: userId ?? this.userId,
+      reviewId: reviewId ?? this.reviewId,
+      reviewRating: reviewRating ?? this.reviewRating,
+      reviewComment: reviewComment ?? this.reviewComment,
     );
   }
 
@@ -87,6 +99,7 @@ class BookingHistoryModel {
           ); // fallback jika berupa Map mentah
 
     final reviews = _asList(json['reviews']);
+    final review = reviews.isNotEmpty ? _asMap(reviews.first) : null;
 
     final checkIn =
         _parseDate(json['check_in'] ?? json['checkIn']) ?? DateTime.now();
@@ -125,10 +138,17 @@ class BookingHistoryModel {
       ], fallback: 'Booking'),
       imageUrl: _resolveImageUrl(
         _firstNullableText([
+          room?['room_image'],
+          room?['image_url'],
+          room?['image'],
           hotel?['hotel_image'],
           hotel?['image_url'],
           hotel?['image'],
+          firstDetail?['room_image'],
+          firstDetail?['image_url'],
+          firstDetail?['image'],
           json['hotel_image'],
+          json['room_image'],
           json['image_url'],
           json['image'],
         ]),
@@ -149,6 +169,12 @@ class BookingHistoryModel {
       ),
       reviewStatus: reviews.isNotEmpty ? 'Reviewed' : 'Not Reviewed',
       userId: _firstNullableText([json['id_user'], json['user_id']]),
+      reviewId: _firstNullableText([review?['id_review'], review?['id']]),
+      reviewRating: _toInt(review?['rating']),
+      reviewComment: _firstNullableText([
+        review?['komentar'],
+        review?['comment'],
+      ]),
     );
   }
 
@@ -210,6 +236,12 @@ class BookingHistoryModel {
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  static int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
   static String _formatPaymentStatus(dynamic value) {
     final status = value?.toString().toLowerCase() ?? 'pending';
     if (status.contains('success') ||
@@ -228,6 +260,7 @@ class BookingHistoryModel {
   static String _formatPaymentMethod(dynamic value) {
     final method = value?.toString().trim();
     if (method == null || method.isEmpty || method == 'null') return 'QRIS';
+    if (method.toLowerCase() == 'virtual_account') return 'QRIS';
     return method
         .split(RegExp(r'[_\s-]+'))
         .where((part) => part.isNotEmpty)
@@ -240,19 +273,6 @@ class BookingHistoryModel {
   }
 
   static String _resolveImageUrl(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400';
-    }
-
-    final imagePath = value.trim().replaceAll('\\', '/');
-    final uri = Uri.tryParse(imagePath);
-    if (uri != null && uri.hasScheme) return imagePath;
-
-    final serverUrl = ApiClient.serverUrl;
-    if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
-
-    // Hilangkan prefix storage/ jika di database sudah tersimpan dengan kata 'storage/'
-    if (imagePath.startsWith('storage/')) return '$serverUrl/$imagePath';
-    return '$serverUrl/storage/$imagePath';
+    return resolveImageUrl(value) ?? fallbackHotelImageUrl();
   }
 }

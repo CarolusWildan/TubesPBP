@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../hotel/presentation/widgets/room_info_card.dart';
 import '../../../../shared/widgets/trip_info.dart';
 import '../../../history/presentation/screens/history_screen.dart';
 import '../../../home/presentation/screens/main_screen.dart';
 import '../../../../shared/widgets/confirmation_dialog.dart';
+import '../../../../shared/network/api_client.dart';
 
-class PaymentInstructionScreen extends StatelessWidget {
+class PaymentInstructionScreen extends StatefulWidget {
   final String hotelName;
   final String roomType;
   final double rating;
@@ -35,9 +37,36 @@ class PaymentInstructionScreen extends StatelessWidget {
     this.paymentId,
   });
 
+  @override
+  State<PaymentInstructionScreen> createState() =>
+      _PaymentInstructionScreenState();
+}
+
+class _PaymentInstructionScreenState extends State<PaymentInstructionScreen> {
+  late String _paymentMethodId;
+  late String _paymentMethodName;
+  bool _isUpdatingPayment = false;
+
+  final List<_PaymentOption> _paymentOptions = const [
+    _PaymentOption(id: 'qris', name: 'QRIS', icon: Icons.qr_code),
+    _PaymentOption(
+      id: 'credit_card',
+      name: 'Credit Card',
+      icon: Icons.credit_card,
+    ),
+    _PaymentOption(id: 'ewallet', name: 'E-Wallet', icon: Icons.wallet),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentMethodId = widget.paymentMethodId;
+    _paymentMethodName = widget.paymentMethodName;
+  }
+
   String get _paymentReference {
-    if (paymentId != null && paymentId!.isNotEmpty) {
-      return paymentId!.toUpperCase();
+    if (widget.paymentId != null && widget.paymentId!.isNotEmpty) {
+      return widget.paymentId!.toUpperCase();
     }
     final fallback = 'PIT-${DateTime.now().millisecondsSinceEpoch}';
     return fallback.toUpperCase();
@@ -50,14 +79,105 @@ class PaymentInstructionScreen extends StatelessWidget {
   HistoryBookingItem _buildHistoryItem({String status = 'Payment Pending'}) {
     return HistoryBookingItem(
       idPayment: _paymentReference,
-      hotelName: hotelName,
-      location: roomType,
-      imageUrl: imageUrl,
-      checkIn: checkIn,
-      checkOut: checkOut,
-      totalPayment: totalPayment,
+      hotelName: widget.hotelName,
+      location: widget.roomType,
+      imageUrl: widget.imageUrl,
+      checkIn: widget.checkIn,
+      checkOut: widget.checkOut,
+      totalPayment: widget.totalPayment,
       paymentStatus: status,
+      paymentMethod: _paymentMethodName,
     );
+  }
+
+  Future<void> _updatePayment({
+    String? metodePembayaran,
+    String? statusPembayaran,
+  }) async {
+    if (widget.paymentId == null || widget.paymentId!.isEmpty) return;
+
+    final body = <String, dynamic>{};
+    if (metodePembayaran != null) {
+      body['metode_pembayaran'] = _backendPaymentMethod(metodePembayaran);
+    }
+    if (statusPembayaran != null) {
+      body['status_pembayaran'] = statusPembayaran;
+    }
+
+    final apiClient = context.read<ApiClient>();
+    await apiClient.put('/payments/${widget.paymentId}', body);
+  }
+
+  String _backendPaymentMethod(String methodId) {
+    if (methodId == 'qris') return 'virtual_account';
+    return methodId;
+  }
+
+  Future<void> _selectPaymentMethod(_PaymentOption option) async {
+    final previousId = _paymentMethodId;
+    final previousName = _paymentMethodName;
+
+    setState(() {
+      _paymentMethodId = option.id;
+      _paymentMethodName = option.name;
+      _isUpdatingPayment = true;
+    });
+
+    try {
+      await _updatePayment(metodePembayaran: option.id);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _paymentMethodId = previousId;
+        _paymentMethodName = previousName;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isUpdatingPayment = false);
+    }
+  }
+
+  Future<void> _completePayment() async {
+    setState(() => _isUpdatingPayment = true);
+
+    try {
+      await _updatePayment(statusPembayaran: 'success');
+
+      if (!mounted) return;
+      showSuccessConfirmationDialog(
+        context: context,
+        title: 'Success',
+        message: 'Your payment has been completed successfully',
+        buttonText: 'Continue',
+        onPressed: () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MainScreen(
+                initialIndex: 0,
+                latestBooking: _buildHistoryItem(status: 'Payment Success'),
+              ),
+            ),
+            (route) => false,
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isUpdatingPayment = false);
+    }
   }
 
   @override
@@ -83,23 +203,30 @@ class PaymentInstructionScreen extends StatelessWidget {
         child: Column(
           children: [
             RoomInfoCard(
-              hotelName: hotelName,
-              roomType: roomType,
-              rating: rating,
-              imageUrl: imageUrl,
+              hotelName: widget.hotelName,
+              roomType: widget.roomType,
+              rating: widget.rating,
+              imageUrl: widget.imageUrl,
             ),
             const SizedBox(height: 12),
             TripInfoSection(
-              checkIn: checkIn,
-              checkOut: checkOut,
-              jumlahMalam: jumlahMalam,
+              checkIn: widget.checkIn,
+              checkOut: widget.checkOut,
+              jumlahMalam: widget.jumlahMalam,
             ),
             const SizedBox(height: 16),
+            _PaymentMethodSelector(
+              options: _paymentOptions,
+              selectedId: _paymentMethodId,
+              isUpdating: _isUpdatingPayment,
+              onSelected: _selectPaymentMethod,
+            ),
+            const SizedBox(height: 12),
             _PaymentMethodBody(
-              methodId: paymentMethodId,
-              methodName: paymentMethodName,
+              methodId: _paymentMethodId,
+              methodName: _paymentMethodName,
               reference: _paymentReference,
-              amount: _formatRupiah(totalPayment),
+              amount: _formatRupiah(widget.totalPayment),
             ),
           ],
         ),
@@ -118,18 +245,20 @@ class PaymentInstructionScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MainScreen(
-                          initialIndex: 1,
-                          latestBooking: _buildHistoryItem(),
-                        ),
-                      ),
-                      (route) => false,
-                    );
-                  },
+                  onPressed: _isUpdatingPayment
+                      ? null
+                      : () {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MainScreen(
+                                initialIndex: 1,
+                                latestBooking: _buildHistoryItem(),
+                              ),
+                            ),
+                            (route) => false,
+                          );
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFCDEFE0),
                     foregroundColor: const Color(0xFF0EA554),
@@ -149,28 +278,7 @@ class PaymentInstructionScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    showSuccessConfirmationDialog(
-                      context: context,
-                      title: 'Success',
-                      message: 'Your payment has been completed successfully',
-                      buttonText: 'Continue',
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MainScreen(
-                              initialIndex: 0,
-                              latestBooking: _buildHistoryItem(
-                                status: 'Payment Success',
-                              ),
-                            ),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                    );
-                  },
+                  onPressed: _isUpdatingPayment ? null : _completePayment,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0EA554),
                     foregroundColor: Colors.white,
@@ -180,15 +288,92 @@ class PaymentInstructionScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+                  child: _isUpdatingPayment
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Continue',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PaymentOption {
+  final String id;
+  final String name;
+  final IconData icon;
+
+  const _PaymentOption({
+    required this.id,
+    required this.name,
+    required this.icon,
+  });
+}
+
+class _PaymentMethodSelector extends StatelessWidget {
+  final List<_PaymentOption> options;
+  final String selectedId;
+  final bool isUpdating;
+  final ValueChanged<_PaymentOption> onSelected;
+
+  const _PaymentMethodSelector({
+    required this.options,
+    required this.selectedId,
+    required this.isUpdating,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Payment Method',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          ...options.map((option) {
+            final selected = option.id == selectedId;
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              enabled: !isUpdating,
+              leading: Icon(
+                option.icon,
+                color: selected ? const Color(0xFF0EA554) : Colors.black87,
+              ),
+              title: Text(option.name),
+              trailing: selected
+                  ? const Icon(Icons.check_circle, color: Color(0xFF0EA554))
+                  : null,
+              onTap: selected || isUpdating ? null : () => onSelected(option),
+            );
+          }),
+        ],
       ),
     );
   }

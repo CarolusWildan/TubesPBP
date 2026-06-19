@@ -6,6 +6,7 @@ import '../../../home/presentation/providers/booking_summary_provider.dart';
 import '../../../../shared/models/hotel_model.dart';
 import '../../../../shared/models/room_model.dart';
 import '../../../../shared/network/api_client.dart';
+import '../../../../shared/utils/image_url_resolver.dart';
 import '../../../../shared/widgets/addon_section.dart';
 import '../../../../shared/widgets/guest_info.dart';
 import '../../../../shared/widgets/payment_detail_section.dart';
@@ -39,17 +40,7 @@ class BookingSummaryScreen extends StatelessWidget {
   }
 
   String _resolveImageUrl(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400';
-    }
-
-    final imagePath = value.trim();
-    final uri = Uri.tryParse(imagePath);
-    if (uri != null && uri.hasScheme) return imagePath;
-
-    final serverUrl = ApiClient.serverUrl;
-    if (imagePath.startsWith('/')) return '$serverUrl$imagePath';
-    return '$serverUrl/storage/$imagePath';
+    return resolveImageUrl(value) ?? fallbackHotelImageUrl();
   }
 
   String _roomSubtitle(HotelModel? hotel) {
@@ -260,7 +251,7 @@ class BookingSummaryScreen extends StatelessWidget {
             hotelName: hotel?.namaHotel ?? 'Hotel belum dipilih',
             roomType: _roomSubtitle(hotel),
             rating: hotel?.rating ?? 0,
-            imageUrl: _resolveImageUrl(hotel?.hotelImage),
+            imageUrl: _resolveImageUrl(room?.roomImage ?? hotel?.hotelImage),
             checkIn: provider.checkInDate,
             checkOut: provider.checkOutDate,
             jumlahMalam: provider.jumlahMalam,

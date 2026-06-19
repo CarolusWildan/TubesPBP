@@ -131,7 +131,8 @@ class BookingSummaryProvider extends ChangeNotifier {
     return sum;
   });
 
-  double get totalPayment => subtotalOrder + serviceFee - discount + totalAddons;
+  double get totalPayment =>
+      subtotalOrder + serviceFee - discount + totalAddons;
 
   PaymentMethodItem get selectedPaymentMethod => paymentMethods.firstWhere(
     (method) => method.id == selectedPaymentMethodId,
@@ -234,7 +235,7 @@ class BookingSummaryProvider extends ChangeNotifier {
         'subtotal_harga': subtotalOrder,
         'total_harga': totalPayment,
         'status': 'pending',
-        'metode_pembayaran': selectedPaymentMethodId,
+        'metode_pembayaran': _backendPaymentMethodId(selectedPaymentMethodId),
       });
 
       final bookingId = _extractBookingId(booking);
@@ -271,10 +272,9 @@ class BookingSummaryProvider extends ChangeNotifier {
 
     final query = Uri(queryParameters: {'id_hotel': hotelId}).query;
     final response = await _apiClient.get('/rooms/available?$query');
-    final rooms = _extractList(response)
-        .whereType<Map<String, dynamic>>()
-        .map(RoomModel.fromJson)
-        .toList();
+    final rooms = _extractList(
+      response,
+    ).whereType<Map<String, dynamic>>().map(RoomModel.fromJson).toList();
 
     if (rooms.isEmpty) {
       throw Exception('Room untuk hotel ini belum tersedia.');
@@ -349,5 +349,10 @@ class BookingSummaryProvider extends ChangeNotifier {
 
   static DateTime _dateOnly(DateTime date) {
     return DateTime(date.year, date.month, date.day);
+  }
+
+  String _backendPaymentMethodId(String methodId) {
+    if (methodId == 'qris') return 'virtual_account';
+    return methodId;
   }
 }

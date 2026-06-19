@@ -354,14 +354,21 @@ class _DetailKamarScreenState extends State<DetailKamarScreen> {
   }
 }
 
-class _HotelSummary extends StatelessWidget {
+class _HotelSummary extends StatefulWidget {
   final HotelModel hotel;
 
   const _HotelSummary({required this.hotel});
 
   @override
+  State<_HotelSummary> createState() => _HotelSummaryState();
+}
+
+class _HotelSummaryState extends State<_HotelSummary> {
+  bool _isAboutExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
-    final facilities = hotel.facilityNames
+    final facilities = widget.hotel.facilityNames
         .where((facility) => facility.trim().isNotEmpty)
         .toList();
     final mainFacilities = facilities.isEmpty
@@ -393,7 +400,7 @@ class _HotelSummary extends StatelessWidget {
                     const _StarRatingRow(),
                     const SizedBox(height: 10),
                     Text(
-                      hotel.namaHotel,
+                      widget.hotel.namaHotel,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -433,7 +440,7 @@ class _HotelSummary extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              _RatingBadge(rating: hotel.rating ?? 4.9),
+              _RatingBadge(rating: widget.hotel.rating ?? 4.9),
             ],
           ),
           const SizedBox(height: 36),
@@ -446,26 +453,52 @@ class _HotelSummary extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 7),
-          RichText(
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            text: TextSpan(
-              style: const TextStyle(
-                color: Color(0xFF6B7280),
-                fontSize: 14,
-                height: 1.35,
-                fontWeight: FontWeight.w400,
-              ),
-              children: [
-                TextSpan(text: _aboutText),
-                const TextSpan(
-                  text: ' Read more...',
-                  style: TextStyle(
-                    color: _kPrimaryColor,
-                    fontWeight: FontWeight.w800,
-                  ),
+          InkWell(
+            onTap: _toggleAbout,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                _aboutText,
+                maxLines: _isAboutExpanded ? null : 3,
+                overflow: _isAboutExpanded
+                    ? TextOverflow.visible
+                    : TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 14,
+                  height: 1.35,
+                  fontWeight: FontWeight.w400,
                 ),
-              ],
+              ),
+            ),
+          ),
+          InkWell(
+            onTap: _toggleAbout,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _isAboutExpanded ? 'Read less' : 'Read more...',
+                    style: const TextStyle(
+                      color: _kPrimaryColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    _isAboutExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: _kPrimaryColor,
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 26),
@@ -523,16 +556,20 @@ class _HotelSummary extends StatelessWidget {
 
   String get _locationText {
     final parts = [
-      hotel.alamat,
-      hotel.kota,
+      widget.hotel.alamat,
+      widget.hotel.kota,
     ].where((value) => value.trim().isNotEmpty);
     return parts.isEmpty ? 'Location unavailable' : parts.join(', ');
   }
 
   String get _aboutText {
-    final description = (hotel.deskripsi ?? '').trim();
+    final description = (widget.hotel.deskripsi ?? '').trim();
     if (description.isNotEmpty) return description;
-    return 'Staying at ${hotel.namaHotel} is a good choice when you are visiting ${hotel.kota.isEmpty ? 'this destination' : hotel.kota}. 24-hours front desk is available to serve you, from check-in to check-out,';
+    return 'Staying at ${widget.hotel.namaHotel} is a good choice when you are visiting ${widget.hotel.kota.isEmpty ? 'this destination' : widget.hotel.kota}. 24-hours front desk is available to serve you, from check-in to check-out,';
+  }
+
+  void _toggleAbout() {
+    setState(() => _isAboutExpanded = !_isAboutExpanded);
   }
 
   void _showAllFacilities(BuildContext context, List<String> facilities) {

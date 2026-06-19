@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'review_screen.dart';
 
 import '../../../../shared/models/booking_history_model.dart';
+import '../../../../shared/network/api_client.dart';
+import '../../../../shared/widgets/confirmation_dialog.dart';
 import '../../../home/presentation/screens/main_screen.dart';
 import '../../../booking/presentation/screens/payment_instruction_screen.dart';
 import '../widgets/history_booking_card.dart';
@@ -17,7 +20,9 @@ class HistoryDetailScreen extends StatelessWidget {
 
   Color get _statusColor {
     if (booking.isCancel) return const Color(0xFFE53935);
-    return booking.isSuccess ? const Color(0xFF0EA554) : const Color(0xFFFF8A00);
+    return booking.isSuccess
+        ? const Color(0xFF0EA554)
+        : const Color(0xFFFF8A00);
   }
 
   IconData get _statusIcon {
@@ -81,7 +86,48 @@ class HistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  void _cancelBooking(BuildContext context) {
+  Future<void> _cancelBooking(BuildContext context) async {
+    final confirmed = await showActionConfirmationDialog(
+      context: context,
+      title: 'Cancel Booking',
+      message: 'Are you sure you want to cancel this booking?',
+      confirmText: 'Cancel Booking',
+      cancelText: 'Back',
+    );
+
+    if (!confirmed || !context.mounted) return;
+
+    final apiClient = context.read<ApiClient>();
+
+    try {
+      if (booking.idPayment != null && booking.idPayment!.isNotEmpty) {
+        await _updatePaymentStatus(apiClient, 'cancel');
+      } else if (booking.bookingId == null || booking.bookingId!.isEmpty) {
+        throw Exception('ID payment atau booking tidak ditemukan.');
+      }
+
+      if (booking.bookingId != null && booking.bookingId!.isNotEmpty) {
+        try {
+          await apiClient.put('/bookings/${booking.bookingId}', {
+            'status': 'cancel',
+          });
+        } catch (e) {
+          debugPrint('Gagal update status booking: $e');
+        }
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!context.mounted) return;
+
     final cancelledBooking = booking.copyWith(
       paymentStatus: 'Payment Cancel',
       reviewStatus: '',
@@ -98,6 +144,56 @@ class HistoryDetailScreen extends StatelessWidget {
       ),
       (route) => false,
     );
+  }
+
+  Future<void> _updatePaymentStatus(ApiClient apiClient, String status) async {
+    final paymentId = booking.idPayment;
+    if (paymentId == null || paymentId.isEmpty) return;
+
+    try {
+      await apiClient.put('/payments/$paymentId', {
+        'status_pembayaran': status,
+      });
+    } catch (_) {
+      await apiClient.put('/payments/$paymentId', {'status': status});
+    }
+  }
+
+  Future<void> _deleteReview(BuildContext context) async {
+    final reviewId = booking.reviewId;
+    if (reviewId == null || reviewId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Review ID tidak ditemukan.')),
+      );
+      return;
+    }
+
+    final confirmed = await showActionConfirmationDialog(
+      context: context,
+      title: 'Delete Review',
+      message: 'Are you sure you want to delete this review?',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+    );
+
+    if (!confirmed || !context.mounted) return;
+
+    try {
+      await context.read<ApiClient>().delete('/reviews/$reviewId');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Review deleted successfully.')),
+      );
+      Navigator.pop(context, false);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -306,6 +402,33 @@ class HistoryDetailScreen extends StatelessWidget {
                                 Navigator.pop(context, true);
                               }
                             },
+                          ),
+                        ] else if (booking.isReviewed) ...[
+                          const SizedBox(height: 10),
+                          _DetailButton(
+                            label: 'Update Review',
+                            backgroundColor: const Color(0xFF0EA554),
+                            foregroundColor: Colors.white,
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ReviewScreen(booking: booking),
+                                ),
+                              );
+
+                              if (result == true && context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          _DetailButton(
+                            label: 'Delete Review',
+                            backgroundColor: const Color(0xFFFFCDD2),
+                            foregroundColor: Colors.red,
+                            onPressed: () => _deleteReview(context),
                           ),
                         ],
                       ],

@@ -158,6 +158,47 @@ class ApiClient {
     return _processResponse(response, unwrapData: unwrapData);
   }
 
+  Future<dynamic> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+
+    http.Response response;
+    try {
+      response = await http.put(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _buildHeaders(token),
+        body: json.encode(body),
+      );
+    } catch (e) {
+      throw Exception(
+        'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+      );
+    }
+
+    return _processResponse(response, unwrapData: unwrapData);
+  }
+
+  Future<dynamic> delete(String endpoint, {bool unwrapData = true}) async {
+    final token = await _getToken();
+
+    http.Response response;
+    try {
+      response = await http.delete(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: _buildHeaders(token),
+      );
+    } catch (e) {
+      throw Exception(
+        'Gagal terhubung ke server. Periksa koneksi internet Anda.',
+      );
+    }
+
+    return _processResponse(response, unwrapData: unwrapData);
+  }
+
   /*
   |--------------------------------------------------------------------------
   | postMultipart()
@@ -186,8 +227,12 @@ class ApiClient {
     final token = await _getToken();
 
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
 
+      // Header untuk autentikasi (tanpa Content-Type karena diatur otomatis).
       request.headers.addAll({
         'Accept': 'application/json',
         'ngrok-skip-browser-warning': 'true',
@@ -232,7 +277,10 @@ class ApiClient {
     final token = await _getToken();
 
     try {
-      final request = http.MultipartRequest('POST', Uri.parse('$baseUrl$endpoint'));
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
 
       request.headers.addAll({
         'Accept': 'application/json',
@@ -256,6 +304,45 @@ class ApiClient {
       return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception('Gagal mengupload review: $e');
+    }
+  }
+
+  Future<dynamic> putMultipartMultiple(
+    String endpoint,
+    Map<String, String> fields, {
+    List<File>? files,
+    String fileField = 'media[]',
+    bool unwrapData = true,
+  }) async {
+    final token = await _getToken();
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
+        if (token != null) 'Authorization': 'Bearer $token',
+      });
+
+      request.fields.addAll({...fields, '_method': 'PUT'});
+
+      if (files != null && files.isNotEmpty) {
+        for (var file in files) {
+          request.files.add(
+            await http.MultipartFile.fromPath(fileField, file.path),
+          );
+        }
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return _processResponse(response, unwrapData: unwrapData);
+    } catch (e) {
+      throw Exception('Gagal mengupdate review: $e');
     }
   }
 
