@@ -1,29 +1,106 @@
+/*
+|--------------------------------------------------------------------------
+| Personal Information Screen
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menampilkan dan memperbarui data profil personal user: nama, nomor telepon,
+| alamat, serta foto profil.
+|
+| Peran dalam arsitektur:
+| PersonalInfoScreen -> AuthProvider.updateProfile()
+| -> AuthRepository.updateProfile() -> ApiClient.postMultipart('/profile')
+| -> Backend API -> UserModel terbaru -> AuthProvider/secure storage.
+|
+| Hubungan dengan Authentication dan Profile:
+| Screen ini memakai AuthProvider.user sebagai sumber data awal dan menulis
+| perubahan kembali ke AuthProvider agar ProfileScreen langsung menampilkan
+| data terbaru setelah update berhasil.
+|
+| Kapan digunakan:
+| Dibuka dari menu "Personal Information" di ProfileScreen.
+|--------------------------------------------------------------------------
+*/
+
+// Tipe File untuk menyimpan foto dari kamera/galeri sebelum upload.
 import 'dart:io';
+
+// Komponen Flutter untuk form, avatar, dialog, snackbar, dan navigasi.
 import 'package:flutter/material.dart';
+
+// Provider digunakan untuk read/watch AuthProvider.
 import 'package:provider/provider.dart';
+
+// ImagePicker membuka kamera atau galeri untuk memilih foto profil.
 import 'package:image_picker/image_picker.dart';
+
+// State manager profile/auth yang menjalankan update profile.
 import '../../../auth/presentation/providers/auth_provider.dart';
+
+// Dipakai untuk membentuk URL foto profil yang tersimpan di server.
 import '../../../../shared/network/api_client.dart';
+
+// Dialog sukses reusable setelah profile berhasil diperbarui.
 import '../../../../shared/widgets/confirmation_dialog.dart';
 
+/*
+|--------------------------------------------------------------------------
+| PersonalInfoScreen
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget route untuk mengedit informasi personal user.
+|
+| Tanggung jawab:
+| Menyerahkan lifecycle form dan perubahan foto ke _PersonalInfoScreenState.
+|
+| Data yang dikelola:
+| Tidak ada data langsung di class ini.
+|--------------------------------------------------------------------------
+*/
 class PersonalInfoScreen extends StatefulWidget {
   const PersonalInfoScreen({super.key});
 
+  /*
+  |--------------------------------------------------------------------------
+  | createState()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter saat screen dimasukkan ke widget tree.
+  |
+  | Return:
+  | _PersonalInfoScreenState yang menyimpan controller form, foto, dan status
+  | perubahan.
+  |--------------------------------------------------------------------------
+  */
   @override
   State<PersonalInfoScreen> createState() => _PersonalInfoScreenState();
 }
 
+/*
+|--------------------------------------------------------------------------
+| _PersonalInfoScreenState
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Mengelola data awal profile, perubahan form, pemilihan foto, dan proses save.
+|
+| Tanggung jawab:
+| - Membaca user aktif dari AuthProvider saat initState().
+| - Membandingkan input terkini dengan data awal.
+| - Membuka dialog pilihan foto.
+| - Memanggil AuthProvider.updateProfile() saat Save.
+|
+| Data yang dikelola:
+| Controller nama/telepon/alamat, nilai awal pembanding, foto lokal terpilih,
+| flag hapus foto, loading lokal, dan flag _hasChanges.
+|--------------------------------------------------------------------------
+*/
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
 
-  // State untuk menyimpan data asli pembanding
   late String _initialName;
   late String _initialPhone;
   late String _initialAddress;
 
-  // State manajemen gambar
   File? _selectedImageFile;
   bool _isPhotoRemoved = false;
   final ImagePicker _picker = ImagePicker();
@@ -34,6 +111,22 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   static const Color _primaryGreen = Color(0xFF0EA554);
   static const Color _inputBackground = Color(0xFFF8F9FA);
 
+  /*
+  |--------------------------------------------------------------------------
+  | initState()
+  |--------------------------------------------------------------------------
+  | Dipanggil sekali oleh Flutter ketika state dibuat.
+  |
+  | Alur:
+  | 1. Membaca AuthProvider.user tanpa subscribe rebuild.
+  | 2. Menyimpan nilai awal sebagai pembanding perubahan.
+  | 3. Membuat controller dengan nilai profile saat ini.
+  | 4. Memasang listener untuk mengaktifkan tombol Save ketika ada perubahan.
+  |
+  | Efek state:
+  | Mengisi controller dan nilai awal profile.
+  |--------------------------------------------------------------------------
+  */
   @override
   void initState() {
     super.initState();
@@ -52,6 +145,16 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     _addressController.addListener(_checkForChanges);
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | dispose()
+  |--------------------------------------------------------------------------
+  | Dipanggil saat user keluar dari screen.
+  |
+  | Efek state:
+  | Melepas listener dan membersihkan controller form.
+  |--------------------------------------------------------------------------
+  */
   @override
   void dispose() {
     _nameController.removeListener(_checkForChanges);
@@ -63,6 +166,20 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     super.dispose();
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _checkForChanges()
+  |--------------------------------------------------------------------------
+  | Dipanggil oleh listener controller dan setelah user memilih/menghapus foto.
+  |
+  | Return:
+  | void.
+  |
+  | Efek state:
+  | Mengubah _hasChanges agar tombol Save aktif hanya saat ada perubahan teks
+  | atau perubahan foto.
+  |--------------------------------------------------------------------------
+  */
   void _checkForChanges() {
     final currentName = _nameController.text.trim();
     final currentPhone = _phoneController.text.trim();
@@ -81,6 +198,19 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _getInitials()
+  |--------------------------------------------------------------------------
+  | Dipanggil build() saat avatar tidak memiliki foto lokal/server.
+  |
+  | Parameter:
+  | - name: nama user.
+  |
+  | Return:
+  | Inisial uppercase atau '?'.
+  |--------------------------------------------------------------------------
+  */
   String _getInitials(String name) {
     if (name.trim().isEmpty) return '?';
     List<String> words = name.trim().split(RegExp(r'\s+'));
@@ -90,6 +220,21 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _showPhotoActionDialog()
+  |--------------------------------------------------------------------------
+  | Dipanggil ketika user menekan teks "Edit Photo Profile".
+  |
+  | Event widget:
+  | - Take a Photo membuka kamera.
+  | - Choose from gallery membuka galeri.
+  | - Remove Current Photo menandai foto untuk dihapus di backend.
+  |
+  | Efek state:
+  | Mengubah _selectedImageFile, _isPhotoRemoved, dan _hasChanges.
+  |--------------------------------------------------------------------------
+  */
   Future<void> _showPhotoActionDialog() async {
     showDialog(
       context: context,
@@ -174,6 +319,19 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _buildPhotoActionButton()
+  |--------------------------------------------------------------------------
+  | Dipanggil oleh _showPhotoActionDialog() untuk membuat opsi aksi foto.
+  |
+  | Parameter:
+  | icon, label, color, textColor, dan onTap menentukan tampilan serta event.
+  |
+  | Return:
+  | Widget InkWell untuk satu aksi foto.
+  |--------------------------------------------------------------------------
+  */
   Widget _buildPhotoActionButton({
     required IconData icon,
     required String label,
@@ -210,6 +368,17 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _showSuccessDialog()
+  |--------------------------------------------------------------------------
+  | Dipanggil setelah AuthProvider.updateProfile() berhasil.
+  |
+  | Efek state/navigasi:
+  | Menampilkan dialog sukses. Tombol "Got it" menutup dialog dan kembali ke
+  | ProfileScreen, yang akan membaca AuthProvider.user terbaru.
+  |--------------------------------------------------------------------------
+  */
   void _showSuccessDialog() {
     final changedPhotoOnly =
         (_selectedImageFile != null || _isPhotoRemoved) &&
@@ -231,6 +400,28 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _handleSave()
+  |--------------------------------------------------------------------------
+  | Dipanggil oleh tombol Save ketika _hasChanges true dan _isLoading false.
+  |
+  | Alur:
+  | 1. Validasi nama dan nomor telepon tidak kosong.
+  | 2. Menyalakan loading lokal.
+  | 3. Memanggil AuthProvider.updateProfile().
+  | 4. Provider mengirim POST multipart /profile lewat repository.
+  | 5. Jika berhasil, provider memperbarui user dan cache lokal.
+  | 6. Menampilkan dialog sukses atau snackbar error.
+  |
+  | Request API:
+  | AuthProvider.updateProfile() -> AuthRepository.updateProfile()
+  | -> ApiClient.postMultipart('/profile').
+  |
+  | Efek state:
+  | Mengubah _isLoading lokal dan AuthProvider.user melalui provider.
+  |--------------------------------------------------------------------------
+  */
   Future<void> _handleSave() async {
     if (_nameController.text.trim().isEmpty ||
         _phoneController.text.trim().isEmpty) {
@@ -270,6 +461,22 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | build()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter untuk merender halaman dan rebuild ketika AuthProvider
+  | user berubah.
+  |
+  | Interaksi state:
+  | context.watch<AuthProvider>().user menyediakan data foto/nama terbaru.
+  |
+  | Event widget:
+  | - Back button menutup screen.
+  | - Edit Photo Profile membuka dialog foto.
+  | - Save memanggil _handleSave().
+  |--------------------------------------------------------------------------
+  */
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
@@ -284,8 +491,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     if (_selectedImageFile != null) {
       profileImageProvider = FileImage(_selectedImageFile!);
     } else if (hasDatabaseImage && !_isPhotoRemoved) {
-      // 🟢 PEMBARUAN URL DINAMIS STORAGE NGROK
-      // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
+      // Query timestamp memastikan avatar terbaru dimuat setelah update foto.
       final String fullImageUrl =
           '${ApiClient.serverUrl}/storage/$userImage?v=${DateTime.now().millisecondsSinceEpoch}';
       profileImageProvider = NetworkImage(
@@ -325,7 +531,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // --- Avatar ---
                     Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -364,7 +569,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // --- Form Input ---
                     _buildCustomTextField(
                       label: 'Full Name',
                       controller: _nameController,
@@ -388,7 +592,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
               ),
             ),
 
-            // --- Tombol Simpan ---
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
@@ -431,6 +634,22 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _buildCustomTextField()
+  |--------------------------------------------------------------------------
+  | Dipanggil build() untuk field Full Name dan Address.
+  |
+  | Parameter:
+  | - label: teks label field.
+  | - controller: controller field.
+  | - enabled: false saat proses save berjalan.
+  | - maxLines: jumlah baris, dipakai untuk alamat.
+  |
+  | Return:
+  | Widget field teks terlabel.
+  |--------------------------------------------------------------------------
+  */
   Widget _buildCustomTextField({
     required String label,
     required TextEditingController controller,
@@ -470,6 +689,21 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _buildPhoneTextField()
+  |--------------------------------------------------------------------------
+  | Dipanggil build() untuk field Call Number dengan prefix +62.
+  |
+  | Parameter:
+  | - label: teks label field.
+  | - controller: controller nomor telepon.
+  | - enabled: false saat proses save berjalan.
+  |
+  | Return:
+  | Widget field telepon terlabel.
+  |--------------------------------------------------------------------------
+  */
   Widget _buildPhoneTextField({
     required String label,
     required TextEditingController controller,

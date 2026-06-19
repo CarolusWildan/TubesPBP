@@ -1,5 +1,41 @@
+/*
+|--------------------------------------------------------------------------
+| Primary Button
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menyediakan tombol aksi utama reusable dengan loading state.
+|
+| Peran dalam arsitektur:
+| UI Layer widget. Button ini tidak mengetahui provider/repository; event
+| onPressed diberikan oleh screen seperti LoginScreen dan RegisterScreen.
+|
+| Hubungan dengan Authentication/Profile:
+| Dipakai untuk memicu login/register dan menampilkan spinner ketika
+| AuthProvider.isLoading true.
+|
+| Kapan digunakan:
+| Saat screen membutuhkan tombol submit utama.
+|--------------------------------------------------------------------------
+*/
+
+// Komponen Flutter untuk ElevatedButton, progress indicator, dan layout.
 import 'package:flutter/material.dart';
 
+/*
+|--------------------------------------------------------------------------
+| PrimaryButton
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Tombol submit reusable yang otomatis disabled ketika loading.
+|
+| Tanggung jawab:
+| Menampilkan label normal atau CircularProgressIndicator dan meneruskan event
+| klik ke callback screen.
+|
+| Data yang dikelola:
+| text, onPressed, dan isLoading diterima dari screen.
+|--------------------------------------------------------------------------
+*/
 class PrimaryButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
@@ -12,6 +48,11 @@ class PrimaryButton extends StatelessWidget {
     this.isLoading = false,
   });
 
+  /*
+  | build()
+  | Dipanggil Flutter saat tombol dirender. Return SizedBox berisi
+  | ElevatedButton. Efek state terjadi di callback onPressed milik screen.
+  */
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -20,11 +61,11 @@ class PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0EA554), // Hijau sesuai Figma
+          backgroundColor: const Color(0xFF0EA554),
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0), // Melengkung sesuai Figma
+            borderRadius: BorderRadius.circular(16.0),
           ),
         ),
         child: isLoading

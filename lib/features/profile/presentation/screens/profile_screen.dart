@@ -1,13 +1,77 @@
+/*
+|--------------------------------------------------------------------------
+| Profile Screen
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menampilkan ringkasan akun user, menu pengaturan akun, dan flow logout.
+|
+| Peran dalam arsitektur:
+| ProfileScreen berada di UI Layer. Data user dibaca dari AuthProvider, yang
+| sebelumnya menerima data dari AuthRepository dan LocalStorageService.
+|
+| Hubungan dengan Authentication/Profile:
+| - Menampilkan nama, email, dan foto dari AuthProvider.user.
+| - Membuka PersonalInfoScreen untuk update profil.
+| - Membuka PrivacyPolicyScreen untuk update email/password.
+| - Memanggil AuthProvider.logout() untuk menghapus sesi.
+|
+| Kapan digunakan:
+| Ditampilkan sebagai salah satu tab MainScreen setelah user authenticated.
+|
+| Diagram logout:
+| ProfileScreen
+| -> _showLogoutConfirmation()
+| -> AuthProvider.logout()
+| -> AuthRepository.logout()
+| -> ApiClient.post('/logout')
+| -> LocalStorageService.deleteToken/deleteUser
+| -> AuthProvider.user = null
+| -> Navigator.pushAndRemoveUntil(LoginScreen)
+|--------------------------------------------------------------------------
+*/
+
+// Komponen Flutter untuk layout profile, dialog, icon, dan navigasi.
 import 'package:flutter/material.dart';
+
+// Provider digunakan untuk watch/read AuthProvider.
 import 'package:provider/provider.dart';
 
+// State auth/profile yang menyimpan user aktif dan menjalankan logout.
 import '../../../auth/presentation/providers/auth_provider.dart';
-// 1. UBAH IMPORT: Kita ganti GetStartedScreen dengan LoginScreen
+
+// Route tujuan setelah logout berhasil dan navigation stack dibersihkan.
 import '../../../auth/presentation/screens/login_screen.dart';
+
+// Dipakai untuk membentuk URL foto profil dari server storage.
 import '../../../../shared/network/api_client.dart';
+
+// Halaman detail profile untuk mengubah nama, telepon, alamat, dan foto.
 import 'personal_info_screen.dart';
+
+// Halaman privacy untuk mengubah email dan password.
 import 'privacy_policy_screen.dart';
 
+/*
+|--------------------------------------------------------------------------
+| ProfileScreen
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget halaman profil yang menampilkan data user dan menu akun.
+|
+| Tanggung jawab:
+| - Membaca AuthProvider.user.
+| - Menentukan avatar dari foto server atau inisial nama.
+| - Menyediakan navigasi ke Personal Information dan Privacy Policy.
+| - Mengelola konfirmasi dan eksekusi logout.
+|
+| Hubungan class:
+| Menggunakan AuthProvider, ApiClient, LoginScreen, PersonalInfoScreen,
+| PrivacyPolicyScreen, dan _ProfileMenuTile.
+|
+| Data yang dikelola:
+| Stateless; data berasal dari AuthProvider dan computed value lokal.
+|--------------------------------------------------------------------------
+*/
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -15,7 +79,22 @@ class ProfileScreen extends StatelessWidget {
   static const Color _pageBackground = Color(0xFFF8F9FA);
   static const Color _dangerRed = Color(0xFFFF3B30);
 
-  // Fungsi pembantu untuk mengambil inisial nama
+  /*
+  |--------------------------------------------------------------------------
+  | _getInitials()
+  |--------------------------------------------------------------------------
+  | Dipanggil oleh build() saat user tidak memiliki foto profil.
+  |
+  | Parameter:
+  | - name: nama user yang akan diubah menjadi satu/dua huruf inisial.
+  |
+  | Return:
+  | Inisial uppercase, atau '?' jika nama kosong.
+  |
+  | Efek state:
+  | Tidak ada; helper murni untuk tampilan avatar.
+  |--------------------------------------------------------------------------
+  */
   String _getInitials(String name) {
     if (name.trim().isEmpty) return '?';
     List<String> words = name.trim().split(RegExp(r'\s+'));
@@ -25,6 +104,26 @@ class ProfileScreen extends StatelessWidget {
     return (words[0].substring(0, 1) + words[1].substring(0, 1)).toUpperCase();
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | build()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter untuk menampilkan halaman profile dan rebuild saat
+  | AuthProvider.notifyListeners() berjalan.
+  |
+  | Interaksi state:
+  | context.watch<AuthProvider>() membaca UserModel aktif. Perubahan dari
+  | updateProfile/updatePrivacy akan langsung memperbarui nama, email, foto.
+  |
+  | Event widget:
+  | - Tile Personal Information -> Navigator.push(PersonalInfoScreen).
+  | - Tile Privacy Policy -> Navigator.push(PrivacyPolicyScreen).
+  | - Tile Log Out -> _showLogoutConfirmation().
+  |
+  | Navigasi:
+  | Logout sukses -> pushAndRemoveUntil(LoginScreen).
+  |--------------------------------------------------------------------------
+  */
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -37,17 +136,14 @@ class ProfileScreen extends StatelessWidget {
         ? user!.email
         : 'user@gmail.com';
 
-    // --- Logika Penentuan Gambar Profile ---
     final bool hasDatabaseImage =
         user?.userImage != null && user!.userImage!.trim().isNotEmpty;
     final String initials = _getInitials(displayName);
 
     ImageProvider? profileImageProvider;
     if (hasDatabaseImage) {
-      // 🟢 Ganti URL ini dengan URL Ngrok kamu yang sedang aktif + '/storage/'
-      // Tambahkan ?v= (timestamp) agar Flutter mengabaikan cache lama jika ada pembaruan
       final String fullImageUrl =
-          '${ApiClient.serverUrl}/storage/${user!.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
+          '${ApiClient.serverUrl}/storage/${user.userImage!}?v=${DateTime.now().millisecondsSinceEpoch}';
       profileImageProvider = NetworkImage(
         fullImageUrl,
         headers: ApiClient.imageHeaders,
@@ -77,7 +173,6 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      // --- Tampilan Avatar Dinamis ---
                       Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -85,8 +180,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         child: CircleAvatar(
                           radius: 45,
-                          backgroundColor: Colors
-                              .white, // Background putih jika gambar kosong
+                          backgroundColor: Colors.white,
                           backgroundImage: profileImageProvider,
                           child: profileImageProvider == null
                               ? Text(
@@ -134,8 +228,6 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Area putih dibuat fleksibel agar tetap penuh di berbagai ukuran layar.
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -196,6 +288,24 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _showLogoutConfirmation()
+  |--------------------------------------------------------------------------
+  | Dipanggil ketika user mengetuk menu Log Out.
+  |
+  | Parameter:
+  | - context: BuildContext ProfileScreen untuk dialog, provider, dan navigasi.
+  |
+  | Return:
+  | Future<void> setelah dialog ditutup dan logout selesai jika dikonfirmasi.
+  |
+  | Efek state:
+  | Jika user memilih "Yes, Log Out", method ini memanggil AuthProvider.logout()
+  | yang menghapus token, cache user, dan _user. Setelah itu stack navigasi
+  | diganti dengan LoginScreen.
+  |--------------------------------------------------------------------------
+  */
   Future<void> _showLogoutConfirmation(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -209,21 +319,17 @@ class ProfileScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: Column(
-              mainAxisSize:
-                  MainAxisSize.min, // Agar tinggi dialog menyesuaikan isi
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // 1. Ikon Logout Custom (Dibalik agar panahnya ke kiri)
                 Transform.flip(
                   flipX: true,
                   child: const Icon(
                     Icons.logout_rounded,
                     size: 64,
-                    color: Color(0xFFEF4444), // Warna merah sesuai gambar
+                    color: Color(0xFFEF4444),
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // 2. Judul
                 const Text(
                   'Log Out',
                   style: TextStyle(
@@ -233,20 +339,16 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // 3. Teks Deskripsi
                 const Text(
                   'Are you sure you want to log out? You will\nneed to enter your credentials to access your\naccount again.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.black54,
-                    height: 1.4, // Memberikan jarak antar baris teks
+                    height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 32),
-
-                // 4. Tombol Yes, Log Out (Merah)
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -270,8 +372,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-
-                // 5. Tombol Cancel (Abu-abu)
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -306,7 +406,6 @@ class ProfileScreen extends StatelessWidget {
     await context.read<AuthProvider>().logout();
     if (!context.mounted) return;
 
-    // 2. UBAH NAVIGASI: Arahkan ke LoginScreen
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
@@ -314,6 +413,20 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| _ProfileMenuTile
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget reusable untuk item menu pada ProfileScreen.
+|
+| Tanggung jawab:
+| Menampilkan icon, label, warna status, dan chevron, lalu menjalankan onTap.
+|
+| Data yang dikelola:
+| icon, title, onTap, dan color diterima dari ProfileScreen.
+|--------------------------------------------------------------------------
+*/
 class _ProfileMenuTile extends StatelessWidget {
   const _ProfileMenuTile({
     required this.icon,
@@ -327,6 +440,17 @@ class _ProfileMenuTile extends StatelessWidget {
   final VoidCallback onTap;
   final Color color;
 
+  /*
+  |--------------------------------------------------------------------------
+  | build()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter saat menu tile dirender.
+  |
+  | Event widget:
+  | InkWell.onTap menjalankan callback dari ProfileScreen untuk navigasi atau
+  | logout confirmation.
+  |--------------------------------------------------------------------------
+  */
   @override
   Widget build(BuildContext context) {
     return InkWell(

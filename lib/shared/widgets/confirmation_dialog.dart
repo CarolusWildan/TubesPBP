@@ -1,5 +1,42 @@
+/*
+|--------------------------------------------------------------------------
+| Confirmation Dialog
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menyediakan dialog konfirmasi/sukses reusable untuk flow Authentication dan
+| Profile.
+|
+| Peran dalam arsitektur:
+| UI Layer helper. Dialog ini tidak mengakses provider; screen pemanggil
+| menentukan callback dan navigasi setelah tombol ditekan.
+|
+| Hubungan dengan Authentication/Profile:
+| RegisterScreen dan PersonalInfoScreen memakai dialog sukses. Helper action
+| confirmation tersedia untuk flow yang membutuhkan persetujuan user.
+|
+| Kapan digunakan:
+| Saat screen perlu menampilkan pesan sukses atau meminta keputusan user.
+|--------------------------------------------------------------------------
+*/
+
+// Komponen Flutter untuk Dialog, Icon, Button, dan Navigator.
 import 'package:flutter/material.dart';
 
+/*
+|--------------------------------------------------------------------------
+| ConfirmationDialog
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget dialog reusable dengan icon, title, message, tombol utama, dan tombol
+| sekunder opsional.
+|
+| Tanggung jawab:
+| Menampilkan dialog terstruktur dan menjalankan callback tombol.
+|
+| Data yang dikelola:
+| Stateless; seluruh konten dan callback diterima dari constructor.
+|--------------------------------------------------------------------------
+*/
 class ConfirmationDialog extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -22,6 +59,11 @@ class ConfirmationDialog extends StatelessWidget {
 
   static const Color primaryGreen = Color(0xFF0EA554);
 
+  /*
+  | build()
+  | Dipanggil Flutter saat dialog dirender. Return Dialog. Efek state/navigasi
+  | terjadi melalui callback onPrimaryPressed atau onSecondaryPressed.
+  */
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -107,6 +149,21 @@ class ConfirmationDialog extends StatelessWidget {
   }
 }
 
+/*
+|--------------------------------------------------------------------------
+| showSuccessConfirmationDialog()
+|--------------------------------------------------------------------------
+| Dipanggil screen setelah operasi berhasil, misalnya register atau update
+| profile.
+|
+| Parameter:
+| context, title, message, buttonText, icon, dan onPressed menentukan isi dialog
+| dan aksi tombol.
+|
+| Return:
+| Future<void> dari showDialog.
+|--------------------------------------------------------------------------
+*/
 Future<void> showSuccessConfirmationDialog({
   required BuildContext context,
   required String title,
@@ -130,6 +187,16 @@ Future<void> showSuccessConfirmationDialog({
   );
 }
 
+/*
+|--------------------------------------------------------------------------
+| showActionConfirmationDialog()
+|--------------------------------------------------------------------------
+| Dipanggil screen yang membutuhkan keputusan user sebelum aksi berisiko.
+|
+| Return:
+| true jika user menekan tombol confirm, false jika cancel/dismiss.
+|--------------------------------------------------------------------------
+*/
 Future<bool> showActionConfirmationDialog({
   required BuildContext context,
   required String title,

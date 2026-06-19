@@ -1,5 +1,41 @@
+/*
+|--------------------------------------------------------------------------
+| Custom Text Field
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menyediakan input teks reusable untuk form Authentication.
+|
+| Peran dalam arsitektur:
+| UI Layer widget. Tidak memanggil provider atau repository; nilai input dibaca
+| oleh screen melalui TextEditingController.
+|
+| Hubungan dengan Authentication/Profile:
+| Dipakai LoginScreen untuk email/password dan RegisterScreen untuk nama,
+| email, telepon, serta password.
+|
+| Kapan digunakan:
+| Saat screen membutuhkan field teks dengan style yang konsisten.
+|--------------------------------------------------------------------------
+*/
+
+// Komponen Flutter untuk TextFormField, IconData, dan styling input.
 import 'package:flutter/material.dart';
 
+/*
+|--------------------------------------------------------------------------
+| CustomTextField
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget input reusable dengan icon prefix, hint, mode password, dan keyboard.
+|
+| Tanggung jawab:
+| Menampilkan TextFormField terstyling dan meneruskan perubahan nilai ke
+| TextEditingController milik screen pemanggil.
+|
+| Data yang dikelola:
+| Stateless; semua data berasal dari constructor.
+|--------------------------------------------------------------------------
+*/
 class CustomTextField extends StatelessWidget {
   final String hintText;
   final IconData prefixIcon;
@@ -16,6 +52,11 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
   });
 
+  /*
+  | build()
+  | Dipanggil Flutter saat field dirender. Return Padding berisi TextFormField.
+  | Efek state: tidak ada; controller eksternal menyimpan nilai input.
+  */
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -30,15 +71,13 @@ class CustomTextField extends StatelessWidget {
           hintStyle: const TextStyle(color: Colors.black54, fontStyle: FontStyle.italic),
           prefixIcon: Icon(prefixIcon, color: Colors.black54, size: 20),
           contentPadding: const EdgeInsets.symmetric(vertical: 16.0),
-          // Desain border default (seperti di Figma)
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16.0),
             borderSide: const BorderSide(color: Colors.black45, width: 0.8),
           ),
-          // Desain border saat diklik/fokus
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16.0),
-            borderSide: const BorderSide(color: Color(0xFF0EA554), width: 1.5), // Warna Hijau Primary
+            borderSide: const BorderSide(color: Color(0xFF0EA554), width: 1.5),
           ),
         ),
       ),

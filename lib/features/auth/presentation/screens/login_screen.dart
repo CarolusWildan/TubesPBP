@@ -1,22 +1,115 @@
+/*
+|--------------------------------------------------------------------------
+| Login Screen
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menampilkan halaman sign in dan menghubungkan input user ke AuthProvider.
+|
+| Peran dalam arsitektur:
+| File ini berada di UI Layer. Data bergerak dengan alur:
+| LoginScreen -> AuthProvider.login()/loginWithGoogle() -> AuthRepository
+| -> ApiClient -> Backend API -> token/user -> LocalStorageService
+| -> AuthProvider state -> Navigate MainScreen.
+|
+| Hubungan dengan Authentication/Profile:
+| Login yang berhasil membuat AuthProvider.user terisi. Data user tersebut
+| kemudian dipakai ProfileScreen, PersonalInfoScreen, booking summary, dan
+| screen lain yang membutuhkan identitas user.
+|
+| Kapan digunakan:
+| Dibuka dari GetStartedScreen, dari redirect logout ProfileScreen, atau
+| saat user belum memiliki sesi login aktif.
+|--------------------------------------------------------------------------
+*/
+
+// Komponen dasar Flutter untuk Scaffold, form input, button, dan navigasi.
 import 'package:flutter/material.dart';
+
+// Provider dipakai untuk membaca AuthProvider dan merender loading/error.
 import 'package:provider/provider.dart';
+
+// Halaman utama yang dituju setelah login manual atau Google berhasil.
 import 'package:tubes_hotel/features/home/presentation/screens/main_screen.dart';
+
+// State manager authentication yang menjalankan login dan Google login.
 import '../providers/auth_provider.dart';
+
+// Widget input reusable untuk field email dan password.
 import '../../../../shared/widgets/custom_text_field.dart';
+
+// Tombol utama reusable yang mendukung loading state.
 import '../../../../shared/widgets/primary_button.dart';
+
+// Halaman pendaftaran yang dibuka dari link Sign up.
 import 'register_screen.dart';
 
+/*
+|--------------------------------------------------------------------------
+| LoginScreen
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget halaman login yang menampung state controller melalui State object.
+|
+| Tanggung jawab:
+| Membuat route UI login dan menyerahkan lifecycle ke _LoginScreenState.
+|
+| Hubungan class:
+| LoginScreen dibuat oleh navigator dan akan memakai _LoginScreenState untuk
+| membaca AuthProvider.
+|
+| Data yang dikelola:
+| Tidak ada data langsung di class ini.
+|--------------------------------------------------------------------------
+*/
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
+  /*
+  |--------------------------------------------------------------------------
+  | createState()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter framework saat LoginScreen dimasukkan ke widget tree.
+  |
+  | Return:
+  | _LoginScreenState yang menyimpan TextEditingController email/password.
+  |--------------------------------------------------------------------------
+  */
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+/*
+|--------------------------------------------------------------------------
+| _LoginScreenState
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Mengelola input login, event tombol, dan navigasi setelah autentikasi.
+|
+| Tanggung jawab:
+| - Menyimpan controller email/password.
+| - Membaca loading/error dari AuthProvider.
+| - Memanggil login manual atau Google login.
+| - Mengarahkan user ke MainScreen jika login berhasil.
+|
+| Data yang dikelola:
+| - _emailController: nilai email form.
+| - _passwordController: nilai password form.
+|--------------------------------------------------------------------------
+*/
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  /*
+  |--------------------------------------------------------------------------
+  | dispose()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter saat LoginScreen dihapus dari widget tree.
+  |
+  | Efek state:
+  | Membersihkan TextEditingController agar resource input tidak bocor.
+  |--------------------------------------------------------------------------
+  */
   @override
   void dispose() {
     _emailController.dispose();
@@ -24,9 +117,29 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | build()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter setiap kali UI perlu dirender ulang, termasuk ketika
+  | AuthProvider.notifyListeners() dipanggil.
+  |
+  | Interaksi state:
+  | context.watch<AuthProvider>() membuat widget rebuild saat isLoading atau
+  | errorMessage berubah.
+  |
+  | Event widget:
+  | - PrimaryButton Login memanggil AuthProvider.login().
+  | - OutlinedButton Google memanggil AuthProvider.loginWithGoogle().
+  | - Link Sign up melakukan Navigator.push ke RegisterScreen.
+  |
+  | Navigasi:
+  | Login berhasil -> pushAndRemoveUntil(MainScreen) agar halaman auth tidak
+  | tersisa di back stack.
+  |--------------------------------------------------------------------------
+  */
   @override
   Widget build(BuildContext context) {
-    // Memantau state dari Provider
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
@@ -38,7 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              // --- AREA LOGO ---
               Container(
                 height: 200,
                 width: 150,
@@ -56,8 +168,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- AREA TEKS ---
               const Text(
                 'Sign In',
                 style: TextStyle(
@@ -72,8 +182,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 14, color: Colors.black54),
               ),
               const SizedBox(height: 32),
-
-              // --- AREA FORM ---
               CustomTextField(
                 controller: _emailController,
                 hintText: 'Email',
@@ -87,8 +195,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 isObscure: true,
               ),
               const SizedBox(height: 24),
-
-              // Pesan Error jika gagal login (Berlaku untuk Manual & Google Login)
               if (authProvider.errorMessage != null) ...[
                 Text(
                   authProvider.errorMessage!,
@@ -97,8 +203,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 12),
               ],
-
-              // --- TOMBOL LOGIN MANUAL ---
               PrimaryButton(
                 text: 'Login',
                 isLoading: authProvider.isLoading,
@@ -112,31 +216,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pushAndRemoveUntil(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MainScreen(), 
+                        builder: (context) => const MainScreen(),
                       ),
-                      (route) => false, 
+                      (route) => false,
                     );
                   }
                 },
               ),
               const SizedBox(height: 24),
-
-              // --- SOCIAL LOGIN ---
               const Text(
                 'Or Continue With',
                 style: TextStyle(color: Colors.black54, fontSize: 12),
               ),
               const SizedBox(height: 16),
-              
               OutlinedButton.icon(
-                // Logika disable button jika provider sedang loading
                 onPressed: authProvider.isLoading
                     ? null
                     : () async {
-                        // 1. Panggil fungsi Google Login dari Provider
                         final success = await authProvider.loginWithGoogle();
 
-                        // 2. Jika sukses dan UI masih aktif, navigasikan ke MainScreen
                         if (success && mounted) {
                           Navigator.pushAndRemoveUntil(
                             context,
@@ -148,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       },
                 icon: Image.network(
-                  'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
+                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
                   height: 20,
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.g_mobiledata,
@@ -172,8 +270,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // --- LINK KE REGISTER ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

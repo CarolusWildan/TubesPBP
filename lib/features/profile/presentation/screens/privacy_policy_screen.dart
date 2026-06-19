@@ -1,14 +1,84 @@
+/*
+|--------------------------------------------------------------------------
+| Privacy Policy Screen
+|--------------------------------------------------------------------------
+| Tujuan file:
+| Menampilkan dan mengubah informasi privasi akun berupa email dan password.
+|
+| Peran dalam arsitektur:
+| PrivacyPolicyScreen -> AuthProvider.updatePrivacy()
+| -> AuthRepository.updatePrivacy() -> ApiClient.post('/privacy')
+| -> Backend API -> UserModel terbaru -> AuthProvider/secure storage.
+|
+| Hubungan dengan Authentication dan Profile:
+| Email yang diubah di layar ini menjadi email login dan juga email yang
+| ditampilkan di ProfileScreen. Password baru hanya dikirim bila user mengisi
+| field password saat mode edit.
+|
+| Kapan digunakan:
+| Dibuka dari menu "Privacy Policy" pada ProfileScreen.
+|--------------------------------------------------------------------------
+*/
+
+// Komponen Flutter untuk form, AppBar, dialog sukses, dan navigasi.
 import 'package:flutter/material.dart';
+
+// Provider dipakai untuk membaca dan memperbarui AuthProvider.
 import 'package:provider/provider.dart';
+
+// State manager auth/profile yang menjalankan update email/password.
 import '../../../auth/presentation/providers/auth_provider.dart';
 
+/*
+|--------------------------------------------------------------------------
+| PrivacyPolicyScreen
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Widget route untuk melihat dan mengedit data privasi akun.
+|
+| Tanggung jawab:
+| Menyerahkan lifecycle form privasi ke _PrivacyPolicyScreenState.
+|
+| Data yang dikelola:
+| Tidak ada data langsung di class ini.
+|--------------------------------------------------------------------------
+*/
 class PrivacyPolicyScreen extends StatefulWidget {
   const PrivacyPolicyScreen({super.key});
 
+  /*
+  |--------------------------------------------------------------------------
+  | createState()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter saat screen dimasukkan ke widget tree.
+  |
+  | Return:
+  | _PrivacyPolicyScreenState yang menyimpan controller email/password dan
+  | mode edit.
+  |--------------------------------------------------------------------------
+  */
   @override
   State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
 }
 
+/*
+|--------------------------------------------------------------------------
+| _PrivacyPolicyScreenState
+|--------------------------------------------------------------------------
+| Tujuan class:
+| Mengelola mode baca/edit, perubahan field, dan proses save privacy.
+|
+| Tanggung jawab:
+| - Membaca email awal dari AuthProvider.user.
+| - Mengaktifkan form hanya ketika user menekan Edit Privacy Information.
+| - Mendeteksi perubahan email/password.
+| - Memanggil AuthProvider.updatePrivacy() saat Save.
+|
+| Data yang dikelola:
+| Controller email/password, email awal, mode editing, loading lokal, flag
+| perubahan, dan visibility password.
+|--------------------------------------------------------------------------
+*/
 class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
@@ -23,6 +93,22 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
   static const Color _primaryGreen = Color(0xFF0EA554);
   static const Color _inputBackground = Color(0xFFF8F9FA);
 
+  /*
+  |--------------------------------------------------------------------------
+  | initState()
+  |--------------------------------------------------------------------------
+  | Dipanggil sekali ketika screen dibuat.
+  |
+  | Alur:
+  | 1. Membaca AuthProvider.user tanpa subscribe rebuild.
+  | 2. Menyimpan email awal.
+  | 3. Membuat controller email dan password.
+  | 4. Memasang listener untuk mendeteksi perubahan.
+  |
+  | Efek state:
+  | Mengisi _initialEmail, _emailController, dan _passwordController.
+  |--------------------------------------------------------------------------
+  */
   @override
   void initState() {
     super.initState();
@@ -37,6 +123,16 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     _passwordController.addListener(_checkForChanges);
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | dispose()
+  |--------------------------------------------------------------------------
+  | Dipanggil saat screen ditutup.
+  |
+  | Efek state:
+  | Melepas listener dan membersihkan controller.
+  |--------------------------------------------------------------------------
+  */
   @override
   void dispose() {
     _emailController.removeListener(_checkForChanges);
@@ -46,6 +142,20 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     super.dispose();
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _checkForChanges()
+  |--------------------------------------------------------------------------
+  | Dipanggil setiap email/password berubah.
+  |
+  | Return:
+  | void.
+  |
+  | Efek state:
+  | Mengatur _hasChanges agar tombol Save hanya aktif jika email berubah atau
+  | password baru diisi.
+  |--------------------------------------------------------------------------
+  */
   void _checkForChanges() {
     final currentEmail = _emailController.text.trim();
     final currentPassword = _passwordController.text.trim();
@@ -57,6 +167,17 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _showSuccessDialog()
+  |--------------------------------------------------------------------------
+  | Dipanggil setelah AuthProvider.updatePrivacy() berhasil.
+  |
+  | Efek state/navigasi:
+  | Menampilkan dialog sukses dengan progress singkat, lalu menutup dialog dan
+  | kembali ke ProfileScreen.
+  |--------------------------------------------------------------------------
+  */
   void _showSuccessDialog() {
     showDialog(
       context: context,
@@ -102,9 +223,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                     },
                     onEnd: () {
                       if (!mounted) return;
-                      // Tutup dialog
                       Navigator.of(dialogContext).pop(); 
-                      // Tutup layar Privacy Policy dan kembali ke Profile
                       Navigator.of(context).pop(); 
                     },
                   ),
@@ -117,6 +236,30 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _handleSave()
+  |--------------------------------------------------------------------------
+  | Dipanggil tombol Save ketika mode edit aktif dan ada perubahan.
+  |
+  | Alur:
+  | 1. Membaca email dan password dari controller.
+  | 2. Memvalidasi email tidak kosong.
+  | 3. Menyalakan loading lokal.
+  | 4. Memanggil AuthProvider.updatePrivacy().
+  | 5. Provider mengirim POST /privacy lewat repository.
+  | 6. Menampilkan dialog sukses atau snackbar error.
+  |
+  | Parameter:
+  | Tidak ada; nilai diambil dari controller.
+  |
+  | Return:
+  | Future<void>.
+  |
+  | Efek state:
+  | Mengubah _isLoading lokal dan AuthProvider.user jika backend berhasil.
+  |--------------------------------------------------------------------------
+  */
   Future<void> _handleSave() async {
     final newEmail = _emailController.text.trim();
     final newPassword = _passwordController.text.trim();
@@ -147,6 +290,23 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     }
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | build()
+  |--------------------------------------------------------------------------
+  | Dipanggil Flutter untuk merender halaman privacy.
+  |
+  | Interaksi state:
+  | Form hanya enabled saat _isEditing true. Tombol bawah berganti antara
+  | "Edit Privacy Information" dan "Save".
+  |
+  | Event widget:
+  | - Back button menutup halaman.
+  | - Edit mengaktifkan field.
+  | - Icon visibility mengubah _obscurePassword.
+  | - Save memanggil _handleSave().
+  |--------------------------------------------------------------------------
+  */
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,7 +353,6 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
               ),
             ),
             
-            // --- Bottom Action Button ---
             Padding(
               padding: const EdgeInsets.all(24.0),
               child: SizedBox(
@@ -230,6 +389,25 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     );
   }
 
+  /*
+  |--------------------------------------------------------------------------
+  | _buildTextField()
+  |--------------------------------------------------------------------------
+  | Dipanggil build() untuk field Email Address dan Password.
+  |
+  | Parameter:
+  | - label: teks label.
+  | - controller: sumber nilai field.
+  | - enabled: menentukan apakah field bisa diedit.
+  | - obscureText: menyembunyikan password.
+  | - isPassword: menampilkan suffix icon visibility saat enabled.
+  | - hintText: placeholder ketika field kosong/non-edit.
+  | - keyboardType: tipe keyboard untuk email.
+  |
+  | Return:
+  | Widget TextField terlabel.
+  |--------------------------------------------------------------------------
+  */
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,

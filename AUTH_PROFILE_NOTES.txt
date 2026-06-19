@@ -1,0 +1,108 @@
+A. Gambaran Umum Authentication Module
+Authentication module menangani login manual, login Google, register, restore sesi, penyimpanan token, dan logout. State utama berada di AuthProvider. Request backend dipusatkan di AuthRepository, sedangkan detail HTTP ditangani ApiClient. Token dan cache UserModel disimpan melalui LocalStorageService.
+
+B. Gambaran Umum Profile Module
+Profile module menampilkan data user aktif dan menyediakan menu Personal Information, Privacy Policy, dan Logout. Data user berasal dari AuthProvider.user. Update profile/privacy dikirim ke backend dan response UserModel terbaru disimpan kembali ke provider serta secure storage.
+
+C. Struktur Folder yang Terlibat
+- TubesPBP/lib/main.dart: bootstrap provider dan AuthWrapper.
+- TubesPBP/lib/core/services/local_storage_service.dart: secure storage token dan user.
+- TubesPBP/lib/shared/network/api_client.dart: HTTP client dan multipart upload.
+- TubesPBP/lib/shared/models/user_model.dart: model data user.
+- TubesPBP/lib/features/auth/data/auth_repository.dart: endpoint auth/profile.
+- TubesPBP/lib/features/auth/presentation/providers/auth_provider.dart: state auth/profile.
+- TubesPBP/lib/features/auth/presentation/screens/login_screen.dart: UI login.
+- TubesPBP/lib/features/auth/presentation/screens/register_screen.dart: UI register.
+- TubesPBP/lib/features/home/presentation/screens/main_screen.dart: tab utama authenticated.
+- TubesPBP/lib/features/profile/presentation/screens/profile_screen.dart: halaman profile dan logout.
+- TubesPBP/lib/features/profile/presentation/screens/personal_info_screen.dart: update nama/telepon/alamat/foto.
+- TubesPBP/lib/features/profile/presentation/screens/privacy_policy_screen.dart: update email/password.
+- TubesPBP/lib/shared/widgets/custom_text_field.dart: input reusable auth.
+- TubesPBP/lib/shared/widgets/primary_button.dart: tombol submit reusable.
+- TubesPBP/lib/shared/widgets/confirmation_dialog.dart: dialog sukses/konfirmasi.
+
+D. Login Flow Lengkap
+LoginScreen dibuka dari GetStartedScreen atau redirect logout. User mengisi email dan password pada CustomTextField. Tombol PrimaryButton Login memanggil AuthProvider.login(email, password). Provider memvalidasi field kosong dan format email. Jika valid, provider memanggil AuthRepository.login(). Repository mengirim POST /login melalui ApiClient. Backend mengembalikan token dan user. Repository mengubah user JSON menjadi UserModel. Provider menyimpan token dan user ke LocalStorageService, mengisi _user, dan mematikan loading. LoginScreen menerima true lalu melakukan Navigator.pushAndRemoveUntil ke MainScreen.
+
+Diagram:
+LoginScreen
+-> AuthProvider.login()
+-> AuthRepository.login()
+-> ApiClient.post('/login')
+-> Backend
+-> token + user
+-> LocalStorageService.saveToken/saveUser
+-> AuthProvider.user
+-> MainScreen
+
+E. Register Flow Lengkap
+RegisterScreen dibuka dari link Sign up di LoginScreen. User mengisi full name, email, phone number, dan password. Tombol Register memanggil AuthProvider.register(). Provider memanggil AuthRepository.register(). Repository mengirim POST /register dengan password_confirmation sama seperti password. Response backend diparse oleh repository; token tidak wajib pada flow ini. Setelah sukses, provider menghapus token/user lokal dan memastikan _user null. RegisterScreen menampilkan dialog sukses, lalu menutup dialog dan kembali ke LoginScreen.
+
+F. Profile Flow Lengkap
+Setelah login, MainScreen menampilkan ProfileScreen pada tab Profile. ProfileScreen memakai context.watch<AuthProvider>() untuk membaca user aktif. Nama, email, dan foto profile dirender dari UserModel. Jika userImage tersedia, URL dibentuk dari ApiClient.serverUrl/storage. Jika tidak ada foto, avatar memakai inisial nama. Saat AuthProvider.user berubah karena update profile/privacy, ProfileScreen rebuild otomatis.
+
+G. Personal Information Flow Lengkap
+ProfileScreen membuka PersonalInfoScreen. initState membaca AuthProvider.user dan mengisi controller nama, nomor telepon, serta alamat. Listener controller mendeteksi perubahan. User dapat memilih foto dari kamera/galeri atau menghapus foto. Tombol Save aktif jika ada perubahan. _handleSave() memvalidasi nama dan nomor telepon, lalu memanggil AuthProvider.updateProfile(). Provider memanggil AuthRepository.updateProfile(), yang mengirim POST multipart /profile dengan fields nama/no_hp/alamat dan file user_image bila ada. Backend mengembalikan UserModel terbaru. Provider menyimpan user terbaru ke secure storage dan memberi notifikasi UI. Dialog sukses menutup screen kembali ke ProfileScreen.
+
+H. Privacy Policy Flow Lengkap
+ProfileScreen membuka PrivacyPolicyScreen. initState membaca email dari AuthProvider.user. Awalnya field tidak bisa diedit. Tombol Edit Privacy Information mengaktifkan email dan password. Perubahan email atau pengisian password mengaktifkan tombol Save. _handleSave() memastikan email tidak kosong, lalu memanggil AuthProvider.updatePrivacy(). Provider memanggil AuthRepository.updatePrivacy(), yang mengirim POST /privacy dengan email dan password jika diisi. Backend mengembalikan UserModel terbaru. Provider memperbarui user dan cache. Dialog sukses menutup halaman kembali ke ProfileScreen.
+
+I. Logout Flow Lengkap
+User menekan menu Log Out di ProfileScreen. _showLogoutConfirmation() menampilkan dialog. Jika user memilih Yes, Log Out, ProfileScreen memanggil AuthProvider.logout(). Provider menyalakan loading dan memanggil AuthRepository.logout(). Repository mengirim POST /logout. Jika request gagal, cleanup lokal tetap dilanjutkan. Provider menghapus token dan user dari LocalStorageService, mengatur _user null, lalu mematikan loading. ProfileScreen melakukan Navigator.pushAndRemoveUntil ke LoginScreen.
+
+J. Daftar Widget yang Digunakan dan Fungsinya
+- LoginScreen: halaman login manual dan Google login.
+- RegisterScreen: halaman pendaftaran akun.
+- MainScreen: container tab Home, Trips, dan Profile setelah authenticated.
+- ProfileScreen: ringkasan user, menu profile/privacy/logout.
+- PersonalInfoScreen: form update data personal dan foto.
+- PrivacyPolicyScreen: form update email/password.
+- CustomTextField: input reusable untuk form auth.
+- PrimaryButton: tombol submit dengan loading state.
+- ConfirmationDialog: dialog sukses/konfirmasi reusable.
+- _ProfileMenuTile: item menu di ProfileScreen.
+
+K. Daftar Provider yang Digunakan dan Fungsinya
+- AuthProvider: menyimpan UserModel aktif, loading state, error message, status checking auth, login, Google login, register, update profile, update privacy, dan logout.
+- HomeProvider: didaftarkan di main.dart untuk fitur home, tidak menjadi pusat flow auth/profile.
+
+L. Daftar Repository yang Digunakan dan Fungsinya
+- AuthRepository: menjalankan request /login, /auth/google, /register, /profile, /privacy, dan /logout. Repository juga memparse response auth menjadi token dan UserModel.
+
+M. Daftar API Endpoint yang Digunakan
+- POST /login: login manual dengan email dan password.
+- POST /auth/google: login menggunakan Google idToken.
+- POST /register: registrasi user baru.
+- POST multipart /profile: update nama, nomor HP, alamat, dan foto profil.
+- POST /privacy: update email dan password.
+- POST /logout: logout token di backend.
+
+N. Daftar Function Penting yang Dipanggil Beserta Penjelasannya
+- main(): membuat dependency dan mendaftarkan provider.
+- AuthProvider.checkLoginStatus(): restore sesi dari secure storage.
+- AuthProvider.login(): validasi login, request /login, simpan token/user.
+- AuthProvider.loginWithGoogle(): mengambil idToken Google, request /auth/google, simpan token/user.
+- AuthProvider.register(): request register dan memastikan user tetap belum login.
+- AuthProvider.updateProfile(): request multipart /profile dan memperbarui user/cache.
+- AuthProvider.updatePrivacy(): request /privacy dan memperbarui user/cache.
+- AuthProvider.logout(): request /logout lalu membersihkan token/user lokal.
+- AuthRepository._parseAuthResponse(): validasi response token/user.
+- ApiClient.post(): request JSON ke backend.
+- ApiClient.postMultipart(): request multipart untuk upload foto profil.
+- LocalStorageService.saveToken/getToken/deleteToken(): lifecycle token.
+- LocalStorageService.saveUser/getUser/deleteUser(): lifecycle cache user.
+- UserModel.fromJson/toJson(): konversi backend/cache ke model dan sebaliknya.
+
+O. Potensi Risiko atau Hal yang Perlu Diperhatikan Developer Baru
+- AuthProvider menjadi satu sumber state user; jangan membuat state user paralel di screen.
+- Register saat ini tidak langsung login; flow sengaja kembali ke LoginScreen.
+- Logout tetap membersihkan cache lokal walaupun POST /logout gagal.
+- Update profile memakai multipart dan nama field backend: nama, no_hp, alamat, user_image, remove_image.
+- Update privacy hanya mengirim password jika field password tidak kosong.
+- Foto profil memakai URL storage dengan query timestamp agar cache gambar tidak menampilkan foto lama.
+- ApiClient mengharapkan response JSON. Response non-JSON akan dianggap error.
+- API_BASE_URL wajib ada di .env dan biasanya berakhir dengan /api.
+- Secure storage menyimpan user JSON; jika format berubah, checkLoginStatus dapat gagal dan cache akan dibersihkan.
+
+P. Ringkasan End-to-End Flow dari Login sampai Logout
+User membuka aplikasi. AuthWrapper menunggu AuthProvider.checkLoginStatus(). Jika belum ada sesi, user menuju GetStarted/Login. User login dari LoginScreen. AuthProvider meminta token/user ke backend melalui AuthRepository dan ApiClient. Token/user disimpan di LocalStorageService. User masuk MainScreen dan membuka tab Profile. ProfileScreen membaca AuthProvider.user. User dapat mengubah Personal Information atau Privacy Policy; setiap update mengirim request ke backend, menerima UserModel terbaru, dan memperbarui provider/cache. Ketika user logout, ProfileScreen meminta konfirmasi, AuthProvider mengirim /logout, menghapus token/user lokal, mengosongkan _user, dan aplikasi diarahkan kembali ke LoginScreen.
