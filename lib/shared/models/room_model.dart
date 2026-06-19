@@ -36,8 +36,15 @@ class RoomModel {
     return RoomModel(
       idRoom: (json['id_room'] ?? json['id'])?.toString() ?? '',
       idHotel: (json['id_hotel'] ?? json['hotel_id'])?.toString() ?? '',
-      idRoomType: (json['id_room_type'] ?? json['room_type_id'])?.toString() ?? '',
-      roomImage: json['room_image']?.toString(),
+      idRoomType:
+          (json['id_room_type'] ?? json['room_type_id'])?.toString() ?? '',
+      roomImage:
+          (json['room_image'] ??
+                  json['image_url'] ??
+                  json['image'] ??
+                  json['foto'] ??
+                  json['photo'])
+              ?.toString(),
       nomorKamar: (json['nomor_kamar'] ?? json['room_number'] ?? '').toString(),
       status: _statusFromJson(json['status']),
       hotel: json['hotel'] is Map<String, dynamic>
