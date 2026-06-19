@@ -98,6 +98,7 @@ class BookingSummaryProvider extends ChangeNotifier {
     AddonItem(id: '2', name: 'Massage', pricePerNight: 100000),
     AddonItem(id: '3', name: 'Late Checkout', pricePerNight: 125000),
     AddonItem(id: '4', name: 'Tour Domestic', pricePerNight: 80000),
+    AddonItem(id: '5', name: 'Dhiaz', pricePerNight: 30000),
   ];
 
   final List<PaymentMethodItem> paymentMethods = [

@@ -95,6 +95,9 @@ class BookingSummaryScreen extends StatelessWidget {
                   room?.roomImage ?? hotel?.hotelImage,
                 ),
               ),
+              
+              const SizedBox(height: 12),
+              const AddonSection(),
               const SizedBox(height: 12),
               Consumer<BookingSummaryProvider>(
                 builder: (context, provider, _) {
@@ -105,8 +108,6 @@ class BookingSummaryScreen extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 12),
-              const AddonSection(),
               const SizedBox(height: 12),
               Consumer<BookingSummaryProvider>(
                 builder: (context, provider, _) {
