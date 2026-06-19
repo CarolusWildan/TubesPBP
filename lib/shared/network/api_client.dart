@@ -82,34 +82,38 @@ class ApiClient {
   }) async {
     final token = await _getToken();
 
+    http.Response response;
     try {
-      final response = await http.put(
+      response = await http.put(
         Uri.parse('$baseUrl$endpoint'),
         headers: _buildHeaders(token),
         body: json.encode(body),
       );
-      return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception(
         'Gagal terhubung ke server. Periksa koneksi internet Anda.',
       );
     }
+
+    return _processResponse(response, unwrapData: unwrapData);
   }
 
   Future<dynamic> delete(String endpoint, {bool unwrapData = true}) async {
     final token = await _getToken();
 
+    http.Response response;
     try {
-      final response = await http.delete(
+      response = await http.delete(
         Uri.parse('$baseUrl$endpoint'),
         headers: _buildHeaders(token),
       );
-      return _processResponse(response, unwrapData: unwrapData);
     } catch (e) {
       throw Exception(
         'Gagal terhubung ke server. Periksa koneksi internet Anda.',
       );
     }
+
+    return _processResponse(response, unwrapData: unwrapData);
   }
 
   // --- 🟢 FUNGSI BARU UNTUK UPLOAD GAMBAR (MULTIPART) 🟢 ---
