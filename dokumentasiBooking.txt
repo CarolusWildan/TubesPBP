@@ -1190,6 +1190,206 @@ Tempat yang disarankan:
 Di Column detail hotel, setelah _formatDateRange() atau setelah harga.
 
 
+CONTOH RESPONSIF: MENAMBAHKAN DATA DI DALAM CARD
+================================================
+
+Tujuan:
+Menambah informasi baru ke dalam card yang sudah ada, misalnya:
+- menambah "Guest Name" di card summary
+- menambah "Payment Method" di card history
+- menambah "Room Capacity" di RoomInfoCard
+- menambah "Booking Code" di Payment Detail
+
+Langkah umum:
+1. Tentukan card yang ingin diubah.
+2. Cari file widget card tersebut.
+3. Cari Column yang berisi children tampilan card.
+4. Tambahkan widget Text, Row, atau helper kecil di posisi yang diminta.
+5. Jika data belum tersedia di widget, ambil dari provider/model atau tambahkan parameter constructor.
+6. Jika data berasal dari API, pastikan model sudah membaca field tersebut.
+
+
+CONTOH 1: MENAMBAH TEKS SEDERHANA DI SECTIONCARD
+------------------------------------------------
+
+Misal ingin menambah "Booking Source: Mobile App" di card Payment Detail.
+
+File:
+lib/shared/widgets/payment_detail_section.dart
+
+Cari bagian:
+SectionCard(
+  title: 'Payment Detail',
+  child: Column(
+    children: [
+      ...
+    ],
+  ),
+)
+
+Tambahkan Text atau Row di dalam children:
+
+const SizedBox(height: 8),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      'Booking Source',
+      style: TextStyle(
+        color: Colors.grey.shade600,
+        fontSize: 13,
+      ),
+    ),
+    const Text(
+      'Mobile App',
+      style: TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+    ),
+  ],
+),
+
+Catatan:
+- Gunakan Row jika bentuk datanya label di kiri dan nilai di kanan.
+- Gunakan Text biasa jika hanya ingin menambah keterangan pendek.
+- Tambahkan SizedBox agar jarak antar data rapi.
+
+
+CONTOH 2: MENAMBAH DATA DARI PROVIDER KE CARD SUMMARY
+-----------------------------------------------------
+
+Misal ingin menampilkan jumlah malam di card Payment Detail.
+
+File:
+lib/shared/widgets/payment_detail_section.dart
+
+Jika widget sudah menerima provider atau nilai nights, langsung tampilkan:
+
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      'Total Nights',
+      style: TextStyle(
+        color: Colors.grey.shade600,
+        fontSize: 13,
+      ),
+    ),
+    Text(
+      '$nights night(s)',
+      style: const TextStyle(
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+    ),
+  ],
+),
+
+Jika nilai belum tersedia:
+1. Cek BookingSummaryProvider apakah sudah punya getter, misalnya nights.
+2. Kalau widget dipanggil dari BookingSummaryScreen, kirim nilai itu lewat parameter.
+3. Tambahkan parameter di constructor widget.
+4. Pakai parameter tersebut di dalam card.
+
+Contoh constructor:
+
+class PaymentDetailSection extends StatelessWidget {
+  final int nights;
+
+  const PaymentDetailSection({
+    super.key,
+    required this.nights,
+  });
+}
+
+Lalu saat dipanggil:
+PaymentDetailSection(
+  nights: provider.nights,
+)
+
+
+CONTOH 3: MENAMBAH DATA DI HISTORYBOOKINGCARD
+---------------------------------------------
+
+Misal ingin menampilkan metode pembayaran di card history.
+
+File:
+lib/features/history/presentation/widgets/history_booking_card.dart
+
+Cari Column detail hotel atau bagian yang menampilkan tanggal/harga.
+
+Tambahkan:
+
+const SizedBox(height: 4),
+Text(
+  booking.paymentMethod,
+  style: TextStyle(
+    fontSize: 11,
+    color: Colors.grey.shade600,
+    fontWeight: FontWeight.w500,
+  ),
+),
+
+Jika ingin label lebih jelas:
+
+const SizedBox(height: 4),
+Text(
+  'Payment: ${booking.paymentMethod}',
+  style: TextStyle(
+    fontSize: 11,
+    color: Colors.grey.shade600,
+    fontWeight: FontWeight.w500,
+  ),
+),
+
+Catatan:
+- Pastikan field booking.paymentMethod memang ada di BookingHistoryModel.
+- Kalau field belum ada, tambahkan parsing di:
+  lib/shared/models/booking_history_model.dart
+- Kalau data dari API kadang null, gunakan fallback:
+  booking.paymentMethod.isEmpty ? '-' : booking.paymentMethod
+
+
+CONTOH 4: MENAMBAH DATA BARU DARI API KE DALAM CARD
+---------------------------------------------------
+
+Misal backend mengirim field baru:
+"booking_code": "BK-001"
+
+Langkah:
+1. Tambahkan field di model.
+2. Parse dari JSON.
+3. Tampilkan field di card.
+
+Contoh di BookingHistoryModel:
+
+final String bookingCode;
+
+Saat fromJson:
+bookingCode: json['booking_code']?.toString() ?? '',
+
+Saat ditampilkan di card:
+
+if (booking.bookingCode.isNotEmpty) ...[
+  const SizedBox(height: 4),
+  Text(
+    'Code: ${booking.bookingCode}',
+    style: TextStyle(
+      fontSize: 11,
+      color: Colors.grey.shade600,
+      fontWeight: FontWeight.w500,
+    ),
+  ),
+],
+
+Catatan penting:
+- Kalau hanya menambah teks statis, cukup ubah file widget card.
+- Kalau menambah data yang sudah ada di provider/model, cukup kirim dan tampilkan datanya.
+- Kalau menambah data baru dari backend, ubah model parsing dulu baru ubah card.
+- Jangan lupa hot restart jika perubahan model/provider tidak langsung terbaca.
+
+
 CONTOH RESPONSIF: MENGUBAH WARNA STATUS HISTORY
 ===============================================
 
