@@ -1,0 +1,1336 @@
+DOCUMENTASI BOOKING - PITULUNGAN INN
+====================================
+
+Tujuan dokumen:
+Catatan ini dibuat untuk membantu responsi bagian booking, terutama:
+1. Booking Date Screen / tanggal pemesanan.
+2. Booking Summary Screen.
+3. History Screen.
+4. Contoh perubahan cepat seperti memecah card menjadi 2, menambah metode pembayaran, mengubah add-on, filter history, dan tampilan card.
+
+Catatan penting:
+- Dokumen ini hanya menjelaskan file dan alur. Jangan mengubah file lain kalau dosen tidak meminta.
+- Project menggunakan Flutter + Provider.
+- State utama booking summary ada di BookingSummaryProvider.
+- Banyak tampilan summary memakai widget reusable bernama SectionCard.
+
+
+DAFTAR FILE PENTING
+===================
+
+1. Tanggal pemesanan:
+   lib/features/booking/presentation/screens/booking_date_screen.dart
+
+2. Ringkasan booking:
+   lib/features/booking/presentation/screens/booking_summary_screen.dart
+
+3. Provider/state ringkasan booking:
+   lib/features/home/presentation/providers/booking_summary_provider.dart
+
+4. Widget summary:
+   lib/features/hotel/presentation/widgets/room_info_card.dart
+   lib/shared/widgets/trip_info.dart
+   lib/shared/widgets/addon_section.dart
+   lib/shared/widgets/guest_info.dart
+   lib/shared/widgets/payment_method_section.dart
+   lib/shared/widgets/payment_detail_section.dart
+   lib/shared/widgets/section_card.dart
+
+5. Instruksi pembayaran setelah Pay Now:
+   lib/features/booking/presentation/screens/payment_instruction_screen.dart
+
+6. History:
+   lib/features/history/presentation/screens/history_screen.dart
+   lib/features/history/presentation/widgets/history_booking_card.dart
+   lib/features/history/presentation/widgets/history_empty_state.dart
+   lib/shared/models/booking_history_model.dart
+
+
+ALUR BESAR BOOKING
+==================
+
+1. User memilih hotel/kamar.
+2. User masuk ke BookingDateScreen.
+3. User memilih check-in dan check-out.
+4. Saat tombol Confirm Date ditekan, app membuka BookingSummaryScreen dengan data:
+   - hotel
+   - room
+   - checkIn
+   - checkOut
+5. BookingSummaryScreen membuat BookingSummaryProvider.
+6. Provider menghitung:
+   - jumlah malam
+   - subtotal kamar
+   - total add-on
+   - service fee
+   - discount
+   - total payment
+7. User memilih add-on dan metode pembayaran.
+8. Saat Pay Now ditekan:
+   - muncul dialog konfirmasi
+   - provider memanggil submitBookingPayment()
+   - data booking dikirim ke endpoint /bookings
+   - user diarahkan ke PaymentInstructionScreen
+9. Dari PaymentInstructionScreen:
+   - Check Status membawa user ke tab History dengan status pending
+   - Continue membawa user ke home dengan status success
+10. HistoryScreen mengambil data dari API:
+   - mencoba GET /bookings
+   - kalau gagal, fallback ke GET /payments
+
+
+BOOKING DATE SCREEN
+===================
+
+File:
+lib/features/booking/presentation/screens/booking_date_screen.dart
+
+Class utama:
+- BookingDateScreen
+- _BookingDateScreenState
+
+Parameter yang diterima:
+- HotelModel hotel, wajib.
+- RoomModel? room, opsional.
+
+State penting:
+- DateTime _checkIn
+  Menyimpan tanggal check-in. Default hari ini, sudah dinormalisasi ke jam 00:00.
+
+- DateTime _checkOut
+  Menyimpan tanggal check-out. Default besok.
+
+- bool _selectingCheckOut
+  Penanda apakah calendar sedang memilih check-out atau check-in.
+  false berarti memilih check-in.
+  true berarti memilih check-out.
+
+Fungsi penting:
+
+1. _dateOnly(DateTime date)
+   Mengubah DateTime menjadi hanya tanggal:
+   DateTime(date.year, date.month, date.day)
+
+   Tujuannya agar perbandingan tanggal tidak terganggu jam/menit/detik.
+
+2. _activeCalendarDate
+   Kalau sedang memilih check-out, calendar aktif di _checkOut.
+   Kalau sedang memilih check-in, calendar aktif di _checkIn.
+
+3. _nights
+   Menghitung jumlah malam:
+   _checkOut.difference(_checkIn).inDays
+
+   Jika hasil <= 0, dikembalikan 1.
+   Ini mencegah booking 0 malam.
+
+4. _handleDateChanged(DateTime selectedDate)
+   Logic saat user memilih tanggal di CalendarDatePicker.
+
+   Kalau sedang memilih check-out:
+   - Jika tanggal yang dipilih setelah check-in, pakai tanggal itu.
+   - Jika tanggal yang dipilih sama/sebelum check-in, otomatis check-out menjadi check-in + 1 hari.
+
+   Kalau sedang memilih check-in:
+   - Set _checkIn ke tanggal yang dipilih.
+   - Jika _checkOut tidak setelah _checkIn, check-out otomatis jadi check-in + 1 hari.
+   - Setelah memilih check-in, mode otomatis pindah ke memilih check-out.
+
+Widget penting:
+
+1. _Header
+   Header hijau dengan:
+   - tombol back
+   - judul Choose Date
+   - tombol reset
+
+   Tombol reset mengembalikan:
+   - check-in = hari ini
+   - check-out = besok
+   - _selectingCheckOut = false
+
+2. _TripSelector
+   Card putih yang menampilkan:
+   - CHECK IN
+   - jumlah malam
+   - CHECK OUT
+
+   User bisa menekan check-in/check-out untuk menentukan tanggal mana yang sedang diedit.
+
+3. _DatePill
+   Bagian kecil untuk menampilkan tanggal check-in atau check-out.
+   Isinya:
+   - label
+   - tanggal
+   - jam statis
+
+   Jam statis saat ini:
+   - Check-in: 14:00 PM
+   - Check-out: 12:00 PM
+
+4. CalendarDatePicker
+   Komponen bawaan Flutter untuk memilih tanggal.
+
+   Properti penting:
+   - initialDate: _activeCalendarDate
+   - firstDate: hari ini
+   - lastDate: tahun sekarang + 2
+   - onDateChanged: _handleDateChanged
+
+5. _BottomBar
+   Bagian bawah layar yang menampilkan:
+   - Total Duration
+   - tombol Confirm Date
+
+   Tombol Confirm Date membuka BookingSummaryScreen:
+   BookingSummaryScreen(
+     hotel: widget.hotel,
+     room: widget.room,
+     checkIn: _checkIn,
+     checkOut: _checkOut,
+   )
+
+Contoh responsi: mengubah minimal booking menjadi 2 malam
+---------------------------------------------------------
+
+Cari logic:
+_checkOut = _checkIn.add(const Duration(days: 1));
+
+Ubah menjadi:
+_checkOut = _checkIn.add(const Duration(days: 2));
+
+Lalu pada _nights, pastikan minimal 2:
+return nights <= 1 ? 2 : nights;
+
+Juga ubah logic di _handleDateChanged ketika check-out tidak valid:
+_checkOut = _checkIn.add(const Duration(days: 2));
+
+Contoh responsi: mengubah batas maksimal booking hanya 1 tahun
+--------------------------------------------------------------
+
+Di CalendarDatePicker, ubah:
+lastDate: DateTime(DateTime.now().year + 2),
+
+Menjadi:
+lastDate: DateTime(DateTime.now().year + 1),
+
+Contoh responsi: mengubah format tanggal
+-----------------------------------------
+
+Di _TripSelector:
+static String _formatDate(DateTime date) {
+  return DateFormat('EEE, dd MMM').format(date);
+}
+
+Contoh format lain:
+- DateFormat('dd MMM yyyy')
+- DateFormat('EEEE, dd MMMM yyyy')
+
+Jika memakai DateFormat, pastikan import intl sudah ada:
+import 'package:intl/intl.dart';
+
+
+BOOKING SUMMARY SCREEN
+======================
+
+File:
+lib/features/booking/presentation/screens/booking_summary_screen.dart
+
+Class utama:
+- BookingSummaryScreen
+
+Parameter:
+- HotelModel? hotel
+- RoomModel? room
+- DateTime? checkIn
+- DateTime? checkOut
+
+Fungsi helper penting:
+
+1. _formatRupiah(double amount)
+   Mengubah angka menjadi format rupiah tanpa desimal.
+   Contoh: 1500000 menjadi 1.500.000
+
+2. _resolveImageUrl(String? value)
+   Menentukan URL gambar:
+   - jika kosong, memakai gambar default Unsplash
+   - jika sudah URL lengkap, langsung dipakai
+   - jika path diawali /, digabung dengan serverUrl
+   - selain itu digabung ke /storage/
+
+3. _roomSubtitle(HotelModel? hotel)
+   Menentukan subtitle kamar:
+   - prioritas room.roomType.namaType
+   - lalu nomor kamar
+   - lalu facility hotel
+   - lalu kota
+   - fallback: Room details belum tersedia
+
+Provider:
+BookingSummaryScreen membungkus Scaffold dengan ChangeNotifierProvider:
+
+BookingSummaryProvider(
+  apiClient: context.read<ApiClient>(),
+  checkIn: checkIn,
+  checkOut: checkOut,
+  guestUser: context.read<AuthProvider>().user,
+  hotelId: hotel?.idHotel,
+  roomId: room?.idRoom,
+  initialRoomPrice: room?.pricePerNight ?? hotel?.minPrice,
+)..loadRoomData()
+
+Artinya:
+- Data tanggal berasal dari BookingDateScreen.
+- Data user berasal dari AuthProvider.
+- Data harga awal berasal dari room.pricePerNight atau hotel.minPrice.
+- loadRoomData() tetap dipanggil untuk memastikan data room valid dari API.
+
+Urutan widget di body:
+1. RoomInfoCard
+2. TripInfoSection
+3. AddonSection
+4. GuestInfoSection
+5. PaymentMethodSection
+6. PaymentDetailSection
+
+Bottom navigation:
+- Menampilkan total payment.
+- Tombol Pay Now.
+- Jika provider.isSubmitting true, tombol menampilkan loading.
+
+Fungsi Pay Now:
+_handlePayNow(BuildContext context, BookingSummaryProvider provider)
+
+Alur:
+1. Ambil selectedPaymentMethod.
+2. Tampilkan showActionConfirmationDialog.
+3. Jika user batal, return.
+4. Jalankan provider.submitBookingPayment().
+5. Jika berhasil, Navigator.push ke PaymentInstructionScreen.
+6. Jika gagal, tampilkan SnackBar error.
+
+
+BOOKING SUMMARY PROVIDER
+========================
+
+File:
+lib/features/home/presentation/providers/booking_summary_provider.dart
+
+Class data kecil:
+
+1. AddonItem
+   Field:
+   - id
+   - name
+   - pricePerNight
+   - isSelected
+   - quantity
+
+   Getter:
+   - isPerPax
+     Saat ini true untuk id 1, 2, dan 4.
+     Add-on per pax memakai quantity stepper.
+     Add-on bukan per pax memakai switch.
+
+   - icon
+     Menentukan icon berdasarkan id add-on.
+
+2. PaymentMethodItem
+   Field:
+   - id
+   - name
+   - icon
+
+State penting BookingSummaryProvider:
+- checkInDate
+- checkOutDate
+- hotelId
+- _injectedRoomId
+- _selectedRoom
+- _roomPricePerNight
+- _roomCapacity
+- _isLoadingRoom
+- _roomErrorMessage
+- _isSubmitting
+- _lastPaymentId
+- _guestUser
+
+List add-on default:
+1. Airport Transfer - 50000
+2. Massage - 100000
+3. Late Checkout - 125000
+4. Tour Domestic - 80000
+
+List metode pembayaran default:
+1. qris - QRIS
+2. credit_card - Credit Card
+3. ewallet - E-Wallet
+
+Metode pembayaran default:
+selectedPaymentMethodId = 'qris'
+
+Getter perhitungan:
+
+1. jumlahMalam
+   checkOutDate.difference(checkInDate).inDays
+   Minimal 1.
+
+2. subtotalOrder
+   _roomPricePerNight * jumlahMalam
+
+3. serviceFee
+   Saat ini fixed 10000.
+
+4. discount
+   Saat ini fixed 0.
+
+5. totalAddons
+   Untuk add-on per pax:
+   pricePerNight * jumlahMalam * quantity
+
+   Untuk add-on switch:
+   pricePerNight * jumlahMalam jika isSelected true.
+
+6. totalPayment
+   subtotalOrder + serviceFee - discount + totalAddons
+
+Fungsi action:
+
+1. toggleAddon(int index)
+   Toggle add-on yang memakai switch.
+
+2. increaseAddonQuantity(int index)
+   Tambah quantity add-on per pax.
+
+3. decreaseAddonQuantity(int index)
+   Kurangi quantity add-on per pax, minimal 0.
+
+4. selectPaymentMethod(String id)
+   Mengubah selectedPaymentMethodId.
+
+5. updateGuest(UserModel? user)
+   Mengubah user tamu jika data berubah.
+
+6. loadRoomData()
+   Mengambil data room dari API.
+
+7. submitBookingPayment()
+   Mengirim booking ke backend.
+
+Payload booking yang dikirim ke /bookings:
+- id_user
+- id_hotel
+- id_room
+- tanggal_booking
+- check_in
+- check_out
+- harga_per_malam
+- harga
+- jumlah_kamar
+- jumlah_tamu
+- jumlah_malam
+- subtotal
+- subtotal_harga
+- total_harga
+- status: pending
+- metode_pembayaran
+
+Catatan:
+metode_pembayaran dikirim dari selectedPaymentMethodId, bukan name.
+Contoh: qris, credit_card, ewallet.
+
+
+WIDGET-WIDGET BOOKING SUMMARY
+=============================
+
+1. SectionCard
+--------------
+
+File:
+lib/shared/widgets/section_card.dart
+
+Ini wrapper card reusable.
+
+Parameter:
+- title, opsional.
+- child, wajib.
+- padding, opsional.
+- trailing, opsional. Dipakai untuk tombol seperti See all.
+
+Struktur:
+Container putih -> Column -> optional header -> child
+
+Kalau dosen minta mengubah semua bentuk card di summary:
+- ubah borderRadius, shadow, padding di SectionCard.
+
+Kalau dosen minta hanya satu card berubah:
+- ubah widget spesifiknya, jangan SectionCard.
+
+2. RoomInfoCard
+---------------
+
+File:
+lib/features/hotel/presentation/widgets/room_info_card.dart
+
+Menampilkan:
+- gambar hotel/kamar
+- nama hotel
+- tipe kamar/subtitle
+- rating
+
+Dipakai di:
+- BookingSummaryScreen
+- PaymentInstructionScreen
+
+Kalau mengubah RoomInfoCard, efeknya bisa muncul di dua screen.
+
+3. TripInfoSection
+------------------
+
+File:
+lib/shared/widgets/trip_info.dart
+
+Menampilkan:
+- CHECK-IN
+- jumlah malam
+- CHECK-OUT
+
+Data berasal dari provider pada BookingSummaryScreen:
+- provider.checkInDate
+- provider.checkOutDate
+- provider.jumlahMalam
+
+4. AddonSection
+---------------
+
+File:
+lib/shared/widgets/addon_section.dart
+
+Mengambil provider dengan:
+context.watch<BookingSummaryProvider>()
+
+Menampilkan semua add-on dari provider.addons.
+
+Untuk add-on per pax:
+- memakai _QuantityStepper
+
+Untuk add-on bukan per pax:
+- memakai _CompactSwitch
+
+5. GuestInfoSection
+-------------------
+
+File:
+lib/shared/widgets/guest_info.dart
+
+Menampilkan:
+- Name
+- Email
+- Call Number
+- panel info tiket
+
+Data user berasal dari AuthProvider yang diteruskan ke BookingSummaryProvider.
+
+6. PaymentMethodSection
+-----------------------
+
+File:
+lib/shared/widgets/payment_method_section.dart
+
+Menampilkan metode pembayaran terpilih.
+Tombol See all membuka modal bottom sheet.
+
+Modal menampilkan semua provider.paymentMethods.
+Ketika dipilih:
+provider.selectPaymentMethod(method.id);
+Navigator.pop(context);
+
+7. PaymentDetailSection
+-----------------------
+
+File:
+lib/shared/widgets/payment_detail_section.dart
+
+Menampilkan:
+- Subtotal Order
+- Service Fee
+- Discount
+- Add-ons, hanya muncul jika totalAddons > 0
+- Total Payment
+- teks syarat dan ketentuan
+
+
+CONTOH RESPONSIF: MEMECAH CARD MENJADI 2
+========================================
+
+Kasus umum:
+Dosen meminta "pecah card Payment Detail menjadi 2 card", misalnya:
+- card 1: Subtotal Order, Service Fee, Discount, Add-ons
+- card 2: Total Payment
+
+File yang diubah:
+lib/shared/widgets/payment_detail_section.dart
+
+Saat ini PaymentDetailSection return Column berisi:
+- SectionCard(title: 'Payment Detail', child: ...)
+- SizedBox
+- Text syarat
+
+Cara ubah:
+1. Biarkan return Column.
+2. Di dalam children, buat dua SectionCard.
+3. SectionCard pertama berisi detail biaya.
+4. SectionCard kedua berisi total payment.
+
+Pola kode:
+
+return Column(
+  children: [
+    SectionCard(
+      title: 'Payment Detail',
+      child: Column(
+        children: [
+          _DetailRow(label: 'Subtotal Order', amount: provider.subtotalOrder),
+          const SizedBox(height: 8),
+          _DetailRow(label: 'Service Fee', amount: provider.serviceFee),
+          const SizedBox(height: 8),
+          _DetailRow(label: 'Discount', amount: provider.discount, isDiscount: true),
+          if (provider.totalAddons > 0) ...[
+            const SizedBox(height: 8),
+            _DetailRow(label: 'Add-ons', amount: provider.totalAddons),
+          ],
+        ],
+      ),
+    ),
+    const SizedBox(height: 12),
+    SectionCard(
+      title: 'Total',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Total Payment'),
+          Text(formatRupiah(provider.totalPayment)),
+        ],
+      ),
+    ),
+    const SizedBox(height: 8),
+    Text(...),
+  ],
+);
+
+Kasus lain:
+Dosen meminta "pecah RoomInfoCard jadi 2 card", misalnya:
+- card 1 hanya gambar
+- card 2 detail hotel
+
+File yang diubah:
+lib/features/hotel/presentation/widgets/room_info_card.dart
+
+Saat ini RoomInfoCard memakai satu SectionCard dengan Row.
+Ubah menjadi Column dengan dua SectionCard:
+- SectionCard(child: Image.network(...))
+- SizedBox(height: 12)
+- SectionCard(child: Column(...nama hotel, room type, rating...))
+
+Ingat:
+RoomInfoCard dipakai juga di PaymentInstructionScreen, jadi perubahan akan muncul di summary dan payment instruction.
+
+
+CONTOH RESPONSIF: MENAMBAH METODE PEMBAYARAN
+============================================
+
+Misal dosen meminta tambah metode pembayaran "Virtual Account".
+
+File utama:
+lib/features/home/presentation/providers/booking_summary_provider.dart
+
+Tambahkan item ke paymentMethods:
+
+PaymentMethodItem(
+  id: 'virtual_account',
+  name: 'Virtual Account',
+  icon: Icons.account_balance,
+),
+
+Setelah itu PaymentMethodSection otomatis menampilkan metode baru di bottom sheet karena mengambil dari provider.paymentMethods.
+
+Namun, agar halaman instruksi pembayaran punya tampilan khusus, ubah juga:
+lib/features/booking/presentation/screens/payment_instruction_screen.dart
+
+Di _PaymentMethodBody.build(), tambahkan kondisi:
+
+if (methodId == 'virtual_account') {
+  return _VirtualAccountPayment(reference: reference, amount: amount);
+}
+
+Lalu buat widget baru _VirtualAccountPayment.
+
+Contoh sederhana:
+
+class _VirtualAccountPayment extends StatelessWidget {
+  final String reference;
+  final String amount;
+
+  const _VirtualAccountPayment({
+    required this.reference,
+    required this.amount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.account_balance, size: 58, color: Color(0xFF0EA554)),
+          const SizedBox(height: 12),
+          const Text(
+            'Virtual Account',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 14),
+          _CodeBox(label: 'VA Number', value: reference),
+          const SizedBox(height: 14),
+          _AmountPanel(amount: amount),
+        ],
+      ),
+    );
+  }
+}
+
+Catatan backend:
+Saat Pay Now, provider mengirim:
+'metode_pembayaran': selectedPaymentMethodId
+
+Jadi untuk Virtual Account, nilai yang dikirim adalah:
+virtual_account
+
+Pastikan backend menerima value itu. Kalau backend hanya menerima qris/credit_card/ewallet, API bisa error.
+
+
+CONTOH RESPONSIF: MENGUBAH METODE PEMBAYARAN DEFAULT
+====================================================
+
+File:
+lib/features/home/presentation/providers/booking_summary_provider.dart
+
+Cari:
+String selectedPaymentMethodId = 'qris';
+
+Ubah misalnya menjadi:
+String selectedPaymentMethodId = 'ewallet';
+
+Pastikan id tersebut ada di list paymentMethods.
+
+
+CONTOH RESPONSIF: MENAMBAH ADD-ON BARU
+======================================
+
+File:
+lib/features/home/presentation/providers/booking_summary_provider.dart
+
+Tambahkan ke list addons:
+
+AddonItem(id: '5', name: 'Breakfast', pricePerNight: 75000),
+
+Jika add-on harus memakai quantity per pax:
+Ubah getter isPerPax di AddonItem:
+
+bool get isPerPax => id == '1' || id == '2' || id == '4' || id == '5';
+
+Tambahkan icon di getter icon:
+
+case '5':
+  return Icons.restaurant_outlined;
+
+Jika add-on hanya on/off switch:
+- tidak perlu menambah id ke isPerPax.
+- cukup tambah case icon jika ingin icon khusus.
+
+
+CONTOH RESPONSIF: MENGUBAH SERVICE FEE ATAU DISCOUNT
+====================================================
+
+File:
+lib/features/home/presentation/providers/booking_summary_provider.dart
+
+Saat ini:
+double get serviceFee => 10000;
+double get discount => 0;
+
+Contoh service fee 5% dari subtotal:
+double get serviceFee => subtotalOrder * 0.05;
+
+Contoh discount 10%:
+double get discount => subtotalOrder * 0.10;
+
+Total payment otomatis ikut berubah karena:
+double get totalPayment => subtotalOrder + serviceFee - discount + totalAddons;
+
+
+PAYMENT INSTRUCTION SCREEN
+==========================
+
+File:
+lib/features/booking/presentation/screens/payment_instruction_screen.dart
+
+Muncul setelah Pay Now berhasil.
+
+Parameter:
+- hotelName
+- roomType
+- rating
+- imageUrl
+- checkIn
+- checkOut
+- jumlahMalam
+- paymentMethodId
+- paymentMethodName
+- paymentId
+- totalPayment
+
+Widget utama:
+1. RoomInfoCard
+2. TripInfoSection
+3. _PaymentMethodBody
+
+_PaymentMethodBody menentukan tampilan berdasarkan methodId:
+- credit_card -> _CreditCardPayment
+- ewallet -> _EWalletPayment
+- selain itu -> _QrisPayment
+
+Tombol bawah:
+1. Check Status
+   Arahkan ke MainScreen(initialIndex: 1) atau tab History.
+   Membawa latestBooking status Payment Pending.
+
+2. Continue
+   Menampilkan dialog sukses, lalu ke MainScreen(initialIndex: 0).
+   Membawa latestBooking status Payment Success.
+
+Catatan:
+latestBooking hanya placeholder agar history bisa langsung menampilkan booking terbaru jika API belum sinkron.
+Data API tetap sumber kebenaran di HistoryScreen.
+
+
+HISTORY SCREEN
+==============
+
+File:
+lib/features/history/presentation/screens/history_screen.dart
+
+Class utama:
+- HistoryScreen
+- _HistoryScreenState
+
+Parameter:
+- BookingHistoryModel? latestBooking
+- String? initialFilter
+
+State:
+- TextEditingController _searchController
+- String _selectedFilter = 'All'
+- bool _isLoading
+- String? _errorMessage
+- List<BookingHistoryModel> _bookings
+
+Alur init:
+1. _selectedFilter diisi dari widget.initialFilter jika ada.
+2. _loadHistory() dipanggil.
+
+Fungsi penting:
+
+1. _loadHistory()
+   Mengatur loading, memanggil _fetchHistoryItems(), lalu merge data.
+
+2. _fetchHistoryItems(ApiClient apiClient, String? userId)
+   Mencoba:
+   GET /bookings
+
+   Jika gagal:
+   GET /payments
+
+   Response diubah menjadi BookingHistoryModel.
+
+3. _extractList(dynamic response)
+   Mengambil list dari beberapa kemungkinan format response:
+   - response langsung List
+   - response['data']
+   - response['items']
+   - response['payments']
+
+4. _mergeBookings(List<BookingHistoryModel> fetched)
+   Menggabungkan latestBooking dengan data API.
+
+   Catatan penting:
+   - latestBooking hanya placeholder.
+   - data API dimasukkan terakhir agar menjadi sumber kebenaran.
+   - data diurutkan berdasarkan checkIn terbaru.
+
+5. _filteredBookings
+   Memfilter booking berdasarkan:
+   - user login
+   - search keyword
+   - selected filter
+
+Search mencocokkan:
+- hotelName
+- location
+
+Filter mencocokkan:
+- All
+- Success
+- Pending
+- Cancel
+
+Filter bekerja dengan contains:
+booking.paymentStatus.toLowerCase().contains(_selectedFilter.toLowerCase())
+
+Jadi:
+- filter Success cocok dengan Payment Success
+- filter Pending cocok dengan Payment Pending
+- filter Cancel cocok dengan Payment Cancel
+
+Struktur UI:
+1. _HistoryHeader
+   Header hijau, judul History, search field.
+
+2. _HistoryFilterBar
+   Row filter chip:
+   - All
+   - Success
+   - Pending
+   - Cancel
+
+3. Expanded content
+   - jika loading: CircularProgressIndicator
+   - jika kosong: HistoryEmptyState
+   - jika ada data: RefreshIndicator + ListView
+
+ListView menampilkan:
+- notice jika error
+- teks bulan dan tahun dari booking pertama
+- HistoryBookingCard untuk setiap booking
+
+Saat card ditekan:
+Navigator.push ke HistoryDetailScreen(booking: booking)
+
+Jika dari detail screen mengembalikan reviewed == true:
+- item terkait di _bookings diubah reviewStatus menjadi Reviewed.
+
+
+HISTORY BOOKING CARD
+====================
+
+File:
+lib/features/history/presentation/widgets/history_booking_card.dart
+
+Class utama:
+- HistoryBookingCard
+- HistoryHotelImage
+- StatusPill
+
+HistoryBookingCard menampilkan:
+- ID payment
+- status pembayaran
+- gambar hotel
+- nama hotel
+- range tanggal
+- total payment
+- status review, kecuali booking cancel
+
+Getter penting:
+- _safeImageUrl
+  Membersihkan URL gambar dan memberi fallback.
+
+- _isPending
+  paymentStatus mengandung pending.
+
+- _isCancel
+  paymentStatus mengandung cancel.
+
+Fungsi format:
+- _formatDateRange()
+  Format: tanggal check-in berupa d, check-out berupa d MMM yyyy.
+  Contoh: 2 - 4 Jun 2026
+
+- _formatRupiah(double amount)
+  Format rupiah dengan koma sebagai pemisah ribuan.
+  Catatan: di beberapa file lain pemisah ribuan memakai titik.
+  Kalau ingin konsisten Indonesia, bisa ubah koma menjadi titik.
+
+Status warna:
+- Pending:
+  background #FFF0DF
+  text #FF8A00
+
+- Cancel:
+  background #FFE9E6
+  text #E53935
+
+- Success:
+  background #E7F8EE
+  text #0EA554
+
+Review status:
+- Jika reviewed: hijau dan icon check_circle
+- Jika belum reviewed: oranye
+- Tidak ditampilkan untuk status cancel
+
+HistoryHotelImage:
+- Mengambil image lewat http.get dengan ApiClient.imageHeaders.
+- Jika berhasil dan content-type image/*, pakai Image.memory.
+- Jika loading, tampil spinner.
+- Jika gagal, tampil icon hotel.
+
+StatusPill:
+- Widget kecil untuk label status.
+- Bisa menerima icon opsional.
+
+
+BOOKING HISTORY MODEL
+=====================
+
+File:
+lib/shared/models/booking_history_model.dart
+
+Field:
+- idPayment
+- bookingId
+- hotelId
+- hotelName
+- location
+- imageUrl
+- checkIn
+- checkOut
+- totalPayment
+- paymentStatus
+- paymentMethod
+- reviewStatus
+- userId
+
+Factory:
+
+1. BookingHistoryModel.fromJson(Map<String, dynamic> json)
+   Dipakai untuk response /bookings.
+
+   Mengambil:
+   - booking_details atau bookingDetails
+   - room
+   - hotel
+   - payments atau payment
+   - reviews
+
+2. BookingHistoryModel.fromPaymentJson(Map<String, dynamic> json)
+   Dipakai untuk response /payments.
+   Jika ada json['booking'], payment dibungkus ke payments agar formatnya seragam.
+
+Getter:
+- isPending
+- isSuccess
+- isCancel
+- isReviewed
+- needsReview
+
+belongsToUser(String? currentUserId):
+- Jika currentUserId kosong atau userId booking null, return true.
+- Jika keduanya ada, harus sama.
+
+Formatter:
+- _formatPaymentStatus
+  Mengubah status backend menjadi:
+  - Payment Success
+  - Payment Cancel
+  - Payment Pending
+
+- _formatPaymentMethod
+  Mengubah qris menjadi QRIS.
+  Mengubah credit_card menjadi Credit Card.
+
+- _resolveImageUrl
+  Mengubah path gambar menjadi URL lengkap.
+
+
+CONTOH RESPONSIF: MENAMBAH FILTER HISTORY
+=========================================
+
+Misal dosen meminta tambah filter "Reviewed".
+
+File:
+lib/features/history/presentation/screens/history_screen.dart
+
+Saat ini filter hanya mengecek paymentStatus.
+Untuk Reviewed, perlu ubah _filteredBookings.
+
+Tambahkan chip:
+
+[
+  'All',
+  'Success',
+  'Pending',
+  'Cancel',
+  'Reviewed',
+].map(_buildFilterChip).toList()
+
+Lalu ubah logic matchesFilter:
+
+final matchesFilter =
+    _selectedFilter == 'All' ||
+    (_selectedFilter == 'Reviewed' && booking.isReviewed) ||
+    booking.paymentStatus.toLowerCase().contains(
+      _selectedFilter.toLowerCase(),
+    );
+
+Jika ingin filter "Not Reviewed":
+
+Tambahkan chip:
+'Not Reviewed'
+
+Logic:
+(_selectedFilter == 'Not Reviewed' && !booking.isReviewed)
+
+
+CONTOH RESPONSIF: MENGUBAH SEARCH HISTORY
+=========================================
+
+File:
+lib/features/history/presentation/screens/history_screen.dart
+
+Saat ini search mencocokkan:
+booking.hotelName
+booking.location
+
+Kalau ingin search berdasarkan payment id:
+
+final matchesSearch =
+    keyword.isEmpty ||
+    booking.hotelName.toLowerCase().contains(keyword) ||
+    booking.location.toLowerCase().contains(keyword) ||
+    (booking.idPayment ?? '').toLowerCase().contains(keyword);
+
+
+CONTOH RESPONSIF: MEMECAH HISTORY CARD MENJADI 2 BAGIAN
+=======================================================
+
+File:
+lib/features/history/presentation/widgets/history_booking_card.dart
+
+Saat ini struktur card:
+Material -> InkWell -> Padding -> Column:
+1. Row ID + status pembayaran
+2. Row gambar + info hotel + review status
+
+Jika diminta memecah menjadi 2 card visual di dalam satu card:
+- Bagian atas: ID + payment status
+- Bagian bawah: gambar + hotel + harga + review status
+
+Cara aman:
+Di dalam Column, bungkus masing-masing bagian dengan Container.
+
+Contoh pola:
+
+Column(
+  children: [
+    Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(...ID dan status...),
+    ),
+    const SizedBox(height: 8),
+    Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(...gambar dan detail...),
+    ),
+  ],
+)
+
+Jika diminta benar-benar menjadi dua card terpisah:
+- Return Column di HistoryBookingCard.
+- Card pertama Material untuk ID/status.
+- SizedBox(height: 8).
+- Card kedua Material untuk detail hotel.
+
+Tetap pasang InkWell di pembungkus yang tepat agar onTap masih bekerja.
+
+
+CONTOH RESPONSIF: MENAMPILKAN PAYMENT METHOD DI HISTORY CARD
+============================================================
+
+File:
+lib/features/history/presentation/widgets/history_booking_card.dart
+
+Data sudah ada:
+booking.paymentMethod
+
+Tambahkan Text di bawah tanggal atau bawah harga:
+
+Text(
+  booking.paymentMethod,
+  style: TextStyle(
+    fontSize: 10,
+    color: Colors.grey.shade600,
+    fontWeight: FontWeight.w500,
+  ),
+),
+
+Tempat yang disarankan:
+Di Column detail hotel, setelah _formatDateRange() atau setelah harga.
+
+
+CONTOH RESPONSIF: MENGUBAH WARNA STATUS HISTORY
+===============================================
+
+File:
+lib/features/history/presentation/widgets/history_booking_card.dart
+
+Cari:
+final statusBackground = ...
+final statusColor = ...
+
+Ubah warna sesuai status.
+
+Contoh success jadi biru:
+statusBackground fallback:
+const Color(0xFFEAF2FF)
+
+statusColor fallback:
+const Color(0xFF2563EB)
+
+
+CONTOH RESPONSIF: MENAMBAH DATA KE PAYLOAD BOOKING
+==================================================
+
+File:
+lib/features/home/presentation/providers/booking_summary_provider.dart
+
+Di submitBookingPayment(), cari:
+final booking = await _apiClient.post('/bookings', {
+  ...
+});
+
+Tambahkan field baru sesuai kebutuhan backend.
+
+Contoh menambah catatan:
+'catatan': 'Request dari aplikasi Flutter',
+
+Jika nilai berasal dari input user:
+1. Buat state/controller di screen atau provider.
+2. Tampilkan TextField di BookingSummaryScreen atau widget baru.
+3. Kirim nilainya di payload.
+
+
+CONTOH RESPONSIF: MENAMBAH INPUT CATATAN DI SUMMARY
+===================================================
+
+Cara sederhana:
+1. Tambahkan String note = '' di BookingSummaryProvider.
+2. Tambahkan method:
+
+void updateNote(String value) {
+  note = value;
+  notifyListeners();
+}
+
+3. Buat widget SectionCard baru di BookingSummaryScreen setelah GuestInfoSection:
+
+SectionCard(
+  title: 'Special Request',
+  child: TextField(
+    maxLines: 3,
+    onChanged: context.read<BookingSummaryProvider>().updateNote,
+    decoration: const InputDecoration(
+      hintText: 'Tambahkan catatan',
+      border: OutlineInputBorder(),
+    ),
+  ),
+)
+
+4. Di submitBookingPayment(), tambahkan:
+'catatan': note,
+
+Catatan:
+Jika memakai TextField di StatelessWidget, untuk responsi cepat onChanged ke provider cukup aman.
+
+
+TIPS DEBUG SAAT RESPONSIF
+=========================
+
+1. Jika UI tidak berubah:
+   - Pastikan file yang diubah memang dipakai screen tersebut.
+   - Hot restart jika provider/state tidak reset.
+
+2. Jika metode pembayaran baru muncul di sheet tapi instruksi masih QRIS:
+   - Berarti belum menambah kondisi di _PaymentMethodBody.
+   - Default selain credit_card dan ewallet akan jatuh ke _QrisPayment.
+
+3. Jika total tidak berubah setelah add-on:
+   - Pastikan notifyListeners() dipanggil.
+   - Pastikan perhitungan totalAddons benar.
+   - Pastikan widget membaca provider dengan context.watch.
+
+4. Jika history kosong:
+   - Cek endpoint /bookings atau /payments.
+   - Cek belongsToUser().
+   - Cek filter yang sedang aktif.
+   - Cek search keyword.
+
+5. Jika booking gagal:
+   - Cek user login.
+   - Cek roomId tersedia.
+   - Cek harga kamar > 0.
+   - Cek backend menerima metode_pembayaran.
+
+6. Jika gambar hotel tidak muncul:
+   - Cek _resolveImageUrl.
+   - Cek ApiClient.serverUrl.
+   - Cek path storage dari backend.
+   - Cek header image jika bukan web.
+
+
+RINGKASAN CEPAT UNTUK RESPONSIF
+===============================
+
+Ubah tanggal booking:
+- booking_date_screen.dart
+- Fokus: _checkIn, _checkOut, _nights, _handleDateChanged, CalendarDatePicker.
+
+Ubah tampilan summary:
+- booking_summary_screen.dart untuk urutan section.
+- widget di lib/shared/widgets untuk isi section.
+- SectionCard untuk gaya card global.
+
+Ubah total pembayaran:
+- booking_summary_provider.dart
+- Fokus: subtotalOrder, serviceFee, discount, totalAddons, totalPayment.
+
+Tambah metode pembayaran:
+- booking_summary_provider.dart tambah PaymentMethodItem.
+- payment_instruction_screen.dart tambah kondisi methodId dan widget instruksi.
+
+Tambah add-on:
+- booking_summary_provider.dart tambah AddonItem.
+- addon_section.dart biasanya tidak perlu diubah karena otomatis render list.
+
+Ubah history list:
+- history_screen.dart untuk fetch, filter, search, loading, empty.
+- history_booking_card.dart untuk tampilan card.
+- booking_history_model.dart untuk parsing data API.
+
+Ubah data yang dikirim ke backend:
+- booking_summary_provider.dart di submitBookingPayment().
+
+Ubah data yang dibaca dari backend:
+- booking_history_model.dart di fromJson/fromPaymentJson.
